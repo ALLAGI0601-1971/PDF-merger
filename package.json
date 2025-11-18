@@ -1,0 +1,17 @@
+{
+  "name": "pdf-merger-electron",
+  "version": "1.0.1",
+  "description": "Local PDF + Image merger (Electron) - modern UI, optimized binary transfer",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "package-win": "npx electron-packager . PDFMerger --platform=win32 --arch=ia32,x64 --out=dist --overwrite"
+  },
+  "dependencies": {
+    "pdf-lib": "^1.17.1"
+  },
+  "devDependencies": {
+    "electron": "^39.2.1",
+    "electron-packager": "^17.1.0"
+  }
+}

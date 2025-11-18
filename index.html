@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>PDF Merger - Modern</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self' 'unsafe-inline' data:;">
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="app">
+
+    <!-- Language Toggle -->
+    <div id="langToggle" class="lang-toggle">🇯🇵 日本語</div>
+
+    <header class="topbar" id="header">
+      <div class="brand">
+        <div class="logo">📎</div>
+        <div>
+          <h1 id="title">PDF結合ツール</h1>
+          <p class="subtitle" id="subtitle">ローカルで高速結合</p>
+        </div>
+      </div>
+      <div class="controls">
+        <input id="fileElem" type="file" accept=".pdf,.png,.jpg,.jpeg" multiple />
+        <label class="btn primary" for="fileElem" id="addBtn">ファイル追加</label>
+        <button class="btn" id="clearBtn">全削除</button>
+      </div>
+    </header>
+
+    <main>
+      <section id="drop-area" class="drop-area">
+        <div class="drop-inner">
+          <div class="drop-icon">⬇️</div>
+          <div class="drop-text" id="dropText">
+            ここにドラッグ＆ドロップ または「ファイル追加」
+          </div>
+        </div>
+
+        <div id="filesList" class="files-grid"></div>
+      </section>
+
+      <aside class="merge-panel">
+        <div class="summary">
+          <div id="count">0 個のファイル</div>
+          <div id="totalsize">0 KB</div>
+        </div>
+        <button class="btn big" id="mergeBtn">結合する</button>
+        <div id="status" class="status">すべてPC内で処理（アップロードなし）</div>
+      </aside>
+    </main>
+
+    <footer class="footer">
+      <small id="footerText">ドラッグで並び替え、×で削除できます。</small>
+    </footer>
+  </div>
+
+  <script src="renderer.js"></script>
+</body>
+</html>
