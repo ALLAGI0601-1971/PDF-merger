@@ -3,6 +3,20 @@
   "version": "1.0.1",
   "description": "Local PDF + Image merger (Electron) - modern UI, optimized binary transfer",
   "main": "main.js",
+  "author":"Utsav Adhikari",
+  "license":"MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/AllagikhabyshikiGaisya/PDF-merger.git"
+  },
+  "keywords": [
+    "pdf",
+    "merger",
+    "electron",
+    "pdf-lib",
+    "japanese",
+    "local"
+  ],
   "scripts": {
     "start": "electron .",
     "package-win": "npx electron-packager . PDFMerger --platform=win32 --arch=ia32,x64 --out=dist --overwrite"
