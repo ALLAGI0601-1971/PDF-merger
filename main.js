@@ -3,6 +3,12 @@ const path = require('path');
 const fs = require('fs');
 const { PDFDocument } = require('pdf-lib');
 
+// Disable hardware acceleration to avoid GPU cache errors
+app.disableHardwareAcceleration();
+
+// Set custom cache path to avoid permission issues
+app.setPath('userData', path.join(app.getPath('appData'), 'pdf-merger-electron'));
+
 function createWindow() {
   const win = new BrowserWindow({
     width: 1200,
@@ -30,23 +36,18 @@ app.on('activate', () => {
 // Helper to normalize incoming buffer (ArrayBuffer / Uint8Array / Array / Buffer)
 function normalizeBuffer(bufLike) {
   if (!bufLike) return Buffer.alloc(0);
-  // If it's a plain Array (from older code), convert:
   if (Array.isArray(bufLike)) {
     return Buffer.from(bufLike);
   }
-  // If it's an ArrayBuffer
   if (bufLike instanceof ArrayBuffer) {
     return Buffer.from(new Uint8Array(bufLike));
   }
-  // If it's a typed array (Uint8Array)
   if (ArrayBuffer.isView(bufLike)) {
     return Buffer.from(bufLike);
   }
-  // If Buffer already
   if (Buffer.isBuffer(bufLike)) {
     return bufLike;
   }
-  // Fallback: try Buffer.from
   try {
     return Buffer.from(bufLike);
   } catch (e) {
@@ -62,6 +63,11 @@ ipcMain.handle('merge-files', async (event, filesArray) => {
 
     const mergedPdf = await PDFDocument.create();
 
+    // A4 size in points (1 point = 1/72 inch)
+    // A4 = 210mm x 297mm = 595.28 x 841.89 points
+    const A4_WIDTH = 595.28;
+    const A4_HEIGHT = 841.89;
+
     for (const f of filesArray) {
       const name = f.name || 'unknown';
       const type = f.type || '';
@@ -70,39 +76,88 @@ ipcMain.handle('merge-files', async (event, filesArray) => {
       if (!buffer || buffer.length === 0) continue;
 
       if ((type === 'application/pdf') || /\.pdf$/i.test(name)) {
-        // PDF: copy pages
+        // PDF: copy pages as-is
         const pdfDoc = await PDFDocument.load(buffer);
         const copied = await mergedPdf.copyPages(pdfDoc, pdfDoc.getPageIndices());
         copied.forEach(p => mergedPdf.addPage(p));
       } else if (type.startsWith('image/') || /\.(png|jpe?g|jpg)$/i.test(name)) {
-        // Image: embed
+        // Image: embed and scale to fit A4
         try {
-          // Attempt to embed as JPEG first (works if data is jpeg)
+          let embedded;
+
           if (type === 'image/jpeg' || /\.jpe?g|jpg$/i.test(name)) {
-            const embedded = await mergedPdf.embedJpg(buffer);
-            const { width, height } = embedded.scale(1);
-            const page = mergedPdf.addPage([width, height]);
-            page.drawImage(embedded, { x: 0, y: 0, width, height });
+            embedded = await mergedPdf.embedJpg(buffer);
           } else {
-            // PNG or other image types
-            const embedded = await mergedPdf.embedPng(buffer).catch(async (err) => {
-              // if embedPng fails (rare), attempt embedJpg by converting was already done on renderer side
-              return mergedPdf.embedJpg(buffer);
-            });
-            const { width, height } = embedded.scale(1);
-            const page = mergedPdf.addPage([width, height]);
-            page.drawImage(embedded, { x: 0, y: 0, width, height });
+            try {
+              embedded = await mergedPdf.embedPng(buffer);
+            } catch (err) {
+              // Fallback to JPEG if PNG fails
+              embedded = await mergedPdf.embedJpg(buffer);
+            }
           }
+
+          // Get original image dimensions
+          const imgWidth = embedded.width;
+          const imgHeight = embedded.height;
+
+          // Calculate scale to fit within A4 with margins
+          const MARGIN = 40; // 40 points margin on each side
+          const maxWidth = A4_WIDTH - (MARGIN * 2);
+          const maxHeight = A4_HEIGHT - (MARGIN * 2);
+
+          // Calculate scale factor to fit image within A4
+          const scaleX = maxWidth / imgWidth;
+          const scaleY = maxHeight / imgHeight;
+          const scale = Math.min(scaleX, scaleY); // Use smaller scale to fit both dimensions
+
+          // Calculate final dimensions
+          const finalWidth = imgWidth * scale;
+          const finalHeight = imgHeight * scale;
+
+          // Calculate position to center image on page
+          const x = (A4_WIDTH - finalWidth) / 2;
+          const y = (A4_HEIGHT - finalHeight) / 2;
+
+          // Create A4 page and draw scaled image centered
+          const page = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          page.drawImage(embedded, {
+            x: x,
+            y: y,
+            width: finalWidth,
+            height: finalHeight
+          });
+
         } catch (imgErr) {
           console.warn('Image embedding failed, skipping:', name, imgErr);
         }
       } else {
-        // Unknown - try to embed as PNG
+        // Unknown type - try to embed as PNG
         try {
           const embedded = await mergedPdf.embedPng(buffer);
-          const { width, height } = embedded.scale(1);
-          const page = mergedPdf.addPage([width, height]);
-          page.drawImage(embedded, { x: 0, y: 0, width, height });
+          const imgWidth = embedded.width;
+          const imgHeight = embedded.height;
+
+          const MARGIN = 40;
+          const maxWidth = A4_WIDTH - (MARGIN * 2);
+          const maxHeight = A4_HEIGHT - (MARGIN * 2);
+
+          const scaleX = maxWidth / imgWidth;
+          const scaleY = maxHeight / imgHeight;
+          const scale = Math.min(scaleX, scaleY);
+
+          const finalWidth = imgWidth * scale;
+          const finalHeight = imgHeight * scale;
+
+          const x = (A4_WIDTH - finalWidth) / 2;
+          const y = (A4_HEIGHT - finalHeight) / 2;
+
+          const page = mergedPdf.addPage([A4_WIDTH, A4_HEIGHT]);
+          page.drawImage(embedded, {
+            x: x,
+            y: y,
+            width: finalWidth,
+            height: finalHeight
+          });
         } catch (e) {
           console.warn('Skipping unsupported file:', name, e);
         }

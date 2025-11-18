@@ -116,15 +116,22 @@ function renderFiles() {
 
     const thumb = document.createElement('div');
     thumb.className = 'thumb';
-    if (f.thumbUrl) {
+    if (f.thumbUrl && f.isImage) {
       const img = document.createElement('img');
       img.src = f.thumbUrl;
+      img.style.width = '100%';
+      img.style.height = '100%';
+      img.style.objectFit = 'cover';
+      img.onerror = () => {
+        // Fallback if image fails to load
+        thumb.innerHTML = '<div style="font-size:22px;color:#667085">🖼️</div>';
+      };
       thumb.appendChild(img);
     } else {
       const span = document.createElement('div');
       span.style.fontSize = '22px';
       span.style.color = '#667085';
-      span.innerText = '📄';
+      span.innerText = f.isImage === false ? '📄' : '🖼️';
       thumb.appendChild(span);
     }
 
@@ -219,18 +226,24 @@ async function handleFileList(fileList) {
     // For images: downscale to jpeg for speed and size
     if (/\.(png|jpe?g|jpg)$/i.test(lower)) {
       try {
+        // Create thumbnail from original file BEFORE resizing
+        const thumbUrl = URL.createObjectURL(file);
+
+        // Then resize for the actual merge
         const resizedAb = await resizeImageFileToJpegArrayBuffer(file);
         const size = resizedAb.byteLength;
-        const thumbUrl = URL.createObjectURL(file);
+
         files.push({
           id: Math.random().toString(36).slice(2,9),
           name,
           type: 'image/jpeg',
           size,
           buffer: resizedAb,
-          thumbUrl
+          thumbUrl,
+          isImage: true
         });
       } catch (e) {
+        // Fallback: use original file
         const ab = await file.arrayBuffer();
         const size = ab.byteLength;
         const thumbUrl = URL.createObjectURL(file);
@@ -240,7 +253,8 @@ async function handleFileList(fileList) {
           type: file.type || 'image/jpeg',
           size,
           buffer: ab,
-          thumbUrl
+          thumbUrl,
+          isImage: true
         });
       }
     } else if (/\.(pdf)$/i.test(lower)) {
@@ -251,7 +265,8 @@ async function handleFileList(fileList) {
         type: 'application/pdf',
         size: ab.byteLength,
         buffer: ab,
-        thumbUrl: null
+        thumbUrl: null,
+        isImage: false
       });
     }
   }
