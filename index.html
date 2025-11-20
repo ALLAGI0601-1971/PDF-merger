@@ -3,7 +3,6 @@
 	<head>
 		<meta charset="utf-8" />
 		<title>PDF Merger & Editor</title>
-		<!-- Updated CSP: removed unsafe-eval for better security -->
 		<meta
 			http-equiv="Content-Security-Policy"
 			content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: file:; connect-src 'self' file: blob:;"
@@ -66,14 +65,13 @@
         <div class="developer-credit">
         <small><strong>Allagi</strong> Original by <strong>Utsav Adhikari</strong> </small>
       </div>
-
 			</footer>
 		</div>
 
 		<!-- Editor overlay -->
-		<div id="editorOverlay" class="editor-overlay hidden">
+		<div id="editorOverlay" class="editor-overlay hidden" aria-hidden="true">
 			<div class="editor-topbar">
-				<div class="editor-tools">
+				<div class="editor-tools-left">
 					<button class="tool" data-tool="pointer" title="Pointer">
 						<img src="icons/pointer.svg" alt="Pointer" />
 					</button>
@@ -107,6 +105,16 @@
 							<button class="color-btn" data-color="#000000" style="background: #000000;" title="Black"></button>
 						</div>
 					</div>
+				</div>
+
+				<div class="editor-tools-right">
+					<!-- Zoom controls (kept) -->
+					<div class="zoom-controls">
+						<button id="zoomOutBtn" class="tool" title="Zoom out">−</button>
+						<input id="zoomSlider" type="range" min="25" max="300" step="5" value="100" />
+						<button id="zoomInBtn" class="tool" title="Zoom in">＋</button>
+						<span id="zoomDisplay">100%</span>
+					</div>
 
 					<button class="tool" id="undoBtn" title="Undo">
 						<img src="icons/undo.svg" alt="Undo" />
@@ -114,21 +122,25 @@
 					<button class="tool" id="redoBtn" title="Redo">
 						<img src="icons/redo.svg" alt="Redo" />
 					</button>
-					<button class="tool save-pdf-btn" id="doneBtn" title="Save PDF">
+
+					<!-- Save icon only — green styled by CSS -->
+					<button class="tool save-pdf-btn" id="doneBtn" title="Save">
 						<img src="icons/save.svg" alt="Save" />
-						<span>Save PDF</span>
 					</button>
+
+					<!-- Close icon only — red styled by CSS -->
 					<button class="tool close-btn" id="closeEditor" title="Close">
 						<img src="icons/x.svg" alt="Close" />
 					</button>
 				</div>
-				<div class="editor-page-nav">
-					<button id="prevPage">◀</button>
-					<span id="pageLabel">1 / 1</span>
-					<button id="nextPage">▶</button>
-				</div>
 			</div>
+
 			<div class="editor-body">
+				<!-- Thumbnail sidebar visible by default -->
+				<div id="thumbSidebar" class="thumb-sidebar" aria-hidden="false">
+					<div class="thumbs-inner" id="thumbsInner"></div>
+				</div>
+
 				<div id="pageContainer" class="page-container"></div>
 			</div>
 		</div>

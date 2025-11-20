@@ -47,7 +47,7 @@ const langToggle = document.getElementById('langToggle');
 
 const editorOverlay = document.getElementById('editorOverlay');
 const pageContainer = document.getElementById('pageContainer');
-const pageLabel = document.getElementById('pageLabel');
+const pageLabel = document.getElementById('pageLabel') || { innerText: '' };
 const prevPageBtn = document.getElementById('prevPage');
 const nextPageBtn = document.getElementById('nextPage');
 
@@ -58,9 +58,17 @@ const redoBtn = document.getElementById('redoBtn');
 const doneBtn = document.getElementById('doneBtn');
 const closeEditorBtn = document.getElementById('closeEditor');
 
+// Zoom UI elements
+const zoomOutBtn = document.getElementById('zoomOutBtn');
+const zoomInBtn = document.getElementById('zoomInBtn');
+const zoomSlider = document.getElementById('zoomSlider');
+const zoomDisplay = document.getElementById('zoomDisplay');
+const thumbSidebar = document.getElementById('thumbSidebar');
+const thumbsInner = document.getElementById('thumbsInner');
+
 let files = []; // { id, name, type, size, buffer:ArrayBuffer, thumbUrl }
 let currentLang = 'ja'; // default Japanese
-let editingPages = []; // array of { baseCanvas, annotCanvas, actions, redo, scale }
+let editingPages = []; // array of { baseCanvas, annotCanvas, actions, redo, scale, origW, origH }
 let currentPageIndex = 0;
 let currentTool = 'pointer';
 let strokeColor = '#ff0000';
@@ -69,6 +77,11 @@ let highlightColor = 'rgba(255,235,59,0.45)';
 
 // Selected text action (for delete shortcut and active outline)
 let selectedTextAction = null;
+
+// Zoom state (expressed as decimal, e.g., 1.0)
+let zoom = 1.0;
+const ZOOM_MIN = 0.25;
+const ZOOM_MAX = 3.0;
 
 // Color mapping for highlights
 const highlightColorMap = {
@@ -387,7 +400,9 @@ colorButtons.forEach((btn) => {
 async function openEditorWithPdf(pdfBytesUint8) {
   editingPages = [];
   pageContainer.innerHTML = '';
+  if (thumbsInner) thumbsInner.innerHTML = '';
   editorOverlay.classList.remove('hidden');
+  editorOverlay.setAttribute('aria-hidden', 'false');
 
   const loadingTask = pdfjsLib.getDocument({ data: pdfBytesUint8 });
   const pdf = await loadingTask.promise;
@@ -411,12 +426,11 @@ async function openEditorWithPdf(pdfBytesUint8) {
 
     const wrap = document.createElement('div');
     wrap.className = 'page-wrap';
-    wrap.style.margin = '12px';
     wrap.appendChild(canvas);
     wrap.style.position = 'relative';
     annot.style.position = 'absolute';
-    annot.style.left = '10px';
-    annot.style.top = '10px';
+    annot.style.left = '0';
+    annot.style.top = '0';
     annot.style.pointerEvents = 'auto';
     wrap.appendChild(annot);
 
@@ -428,27 +442,72 @@ async function openEditorWithPdf(pdfBytesUint8) {
       actions: [],
       redo: [],
       scale: 1.5,
+      origW: canvas.width,
+      origH: canvas.height,
+      pageNumber: i,
     };
 
     editingPages.push(pageObj);
     initAnnotCanvas(annot, pageObj);
+
+    // create thumbnail (render small)
+    try {
+      const thumbScale = Math.min(1, 120 / viewport.width);
+      const tViewport = page.getViewport({ scale: thumbScale });
+      const tCanvas = document.createElement('canvas');
+      tCanvas.width = Math.round(tViewport.width);
+      tCanvas.height = Math.round(tViewport.height);
+      const tCtx = tCanvas.getContext('2d');
+      await page.render({ canvasContext: tCtx, viewport: tViewport }).promise;
+      if (thumbsInner) {
+        const thumbItem = document.createElement('div');
+        thumbItem.className = 'thumb-item';
+        thumbItem.title = `Page ${i}`;
+        thumbItem.appendChild(tCanvas);
+        thumbItem.addEventListener('click', () => {
+          showPage(i - 1);
+          currentPageIndex = i - 1;
+          updatePageLabel();
+          Array.from(thumbsInner.children).forEach(c => c.classList.remove('selected'));
+          thumbItem.classList.add('selected');
+        });
+        thumbsInner.appendChild(thumbItem);
+      }
+    } catch (e) {
+      console.warn('Thumbnail creation failed for page', i, e);
+    }
   }
 
   currentPageIndex = 0;
   showPage(currentPageIndex);
   updatePageLabel();
   updateCursorForTool();
+
+  // default: fit to width on open
+  setTimeout(() => {
+    fitToWidth();
+    // mark first thumbnail selected if present
+    if (thumbsInner && thumbsInner.children.length) thumbsInner.children[0].classList.add('selected');
+  }, 50);
 }
 
 function showPage(index) {
   const wraps = Array.from(document.querySelectorAll('.page-wrap'));
   wraps.forEach((w, i) => {
-    w.style.display = i === index ? 'block' : 'none';
+    w.style.display = i === index ? 'inline-block' : 'none';
   });
+  // ensure the current page is visible in pageContainer vertically
+  const cur = wraps[index];
+  if (cur) {
+    const container = pageContainer;
+    const top = cur.offsetTop;
+    container.scrollTop = Math.max(0, top - 12);
+  }
 }
 
 function updatePageLabel() {
-  pageLabel.innerText = `${currentPageIndex + 1} / ${editingPages.length}`;
+  const lbl = document.getElementById('pageLabel');
+  if (lbl) lbl.innerText = `${currentPageIndex + 1} / ${editingPages.length}`;
 }
 
 prevPageBtn && prevPageBtn.addEventListener('click', () => {
@@ -471,10 +530,7 @@ nextPageBtn && nextPageBtn.addEventListener('click', () => {
 function updateCursorForTool() {
   const canvases = document.querySelectorAll('.annot-canvas');
   canvases.forEach(canvas => {
-    // Remove all cursor classes
     canvas.classList.remove('pointer-cursor', 'pen-cursor', 'text-cursor', 'crosshair-cursor');
-
-    // Add appropriate cursor class
     if (currentTool === 'pointer') {
       canvas.classList.add('pointer-cursor');
     } else if (currentTool === 'pen') {
@@ -487,22 +543,17 @@ function updateCursorForTool() {
   });
 }
 
-// ---------- Text Editor Controls (ChatGPT-like textarea + floating buttons outside) ----------
+// ---------- Text Editor Controls (unchanged) ----------
 function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) {
-  // Close existing
   const existing = document.querySelector('.text-editor-controls');
   if (existing) existing.remove();
-
-  // while editing / when opened, mark as selected to show outline
   selectedTextAction = isExisting ? action : null;
 
-  // container for everything
   const controls = document.createElement('div');
   controls.className = 'text-editor-controls';
   controls.style.position = 'absolute';
   controls.style.zIndex = 22000;
   controls.style.left = Math.max(8, canvasRect.left + (action.x || 0)) + 'px';
-  // slightly center vertically relative to action y
   const computedTop = Math.max(8, canvasRect.top + (action.y || 0) - 12);
   controls.style.top = computedTop + 'px';
   controls.style.display = 'flex';
@@ -510,7 +561,6 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
   controls.style.gap = '10px';
   controls.style.pointerEvents = 'auto';
 
-  // Textarea card (ChatGPT-like)
   const textareaCard = document.createElement('div');
   textareaCard.style.display = 'flex';
   textareaCard.style.flexDirection = 'column';
@@ -521,9 +571,8 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
   textareaCard.style.border = '1px solid rgba(0,0,0,0.06)';
   textareaCard.style.maxWidth = '640px';
   textareaCard.style.minWidth = '160px';
-  textareaCard.style.width = Math.min(420, Math.max(160, action.width || 220)) + 'px';
+  textareaCard.style.width = Math.min(640, Math.max(160, (action.width || 220))) + 'px';
 
-  // ChatGPT-like textarea (single element)
   const textarea = document.createElement('textarea');
   textarea.className = 'floating-textarea';
   textarea.value = isExisting ? (action.text || '') : '';
@@ -543,7 +592,6 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
   textarea.style.boxSizing = 'border-box';
   textarea.style.overflow = 'auto';
 
-  // small footer row (optional small hint) to mimic chat area feel
   const footerRow = document.createElement('div');
   footerRow.style.display = 'flex';
   footerRow.style.justifyContent = 'space-between';
@@ -561,17 +609,14 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
   textareaCard.appendChild(textarea);
   textareaCard.appendChild(footerRow);
 
-  // Floating button column (outside the textarea, to the right)
   const btnColumn = document.createElement('div');
   btnColumn.style.display = 'flex';
   btnColumn.style.flexDirection = 'column';
   btnColumn.style.gap = '8px';
   btnColumn.style.alignItems = 'center';
-  // visually separate from text area a bit
   btnColumn.style.marginLeft = '6px';
   btnColumn.style.marginTop = '6px';
 
-  // Red delete floating button (circular)
   const deleteBtn = document.createElement('button');
   deleteBtn.innerText = '🗑';
   deleteBtn.title = 'Delete';
@@ -602,7 +647,6 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
     }
   };
 
-  // Green OK floating button (circular)
   const okBtn = document.createElement('button');
   okBtn.innerText = '✓';
   okBtn.title = 'Save';
@@ -628,7 +672,6 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
   controls.appendChild(btnColumn);
   document.body.appendChild(controls);
 
-  // commit function (adds action only if new, or updates if existing)
   function commitText() {
     const raw = textarea.value.replace(/\u00A0/g, '');
     const val = raw;
@@ -658,11 +701,9 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
         pageObj.actions.push(newAction);
         pageObj.redo = [];
         pageObj.annotCanvas._redrawAll();
-        // DO NOT keep the action selected after saving — clear selection so border is NOT shown
         selectedTextAction = null;
       }
     } else {
-      // empty -> if existing remove, else just close
       if (isExisting) {
         const idx = pageObj.actions.indexOf(action);
         if (idx > -1) {
@@ -673,11 +714,9 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
       }
     }
     controls.remove();
-    // ensure selection cleared after save/close
     selectedTextAction = null;
   }
 
-  // keyboard handlers: Ctrl/Cmd+Enter commit, Escape cancel
   textarea.addEventListener('keydown', (ev) => {
     const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
     const mod = isMac ? ev.metaKey : ev.ctrlKey;
@@ -691,7 +730,6 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
     }
   });
 
-  // blur: commit after short delay (to allow clicking the floating buttons)
   textarea.addEventListener('blur', () => {
     setTimeout(() => {
       if (document.activeElement !== textarea && document.activeElement !== okBtn && document.activeElement !== deleteBtn) {
@@ -700,15 +738,12 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
     }, 140);
   });
 
-  // ensure focus — small delay to avoid race with pointer events
   setTimeout(() => {
     try { textarea.focus(); } catch (e) { /* ignore */ }
   }, 30);
 
-  // small safety window to ignore immediate outside clicks (prevents flicker on some platforms)
   controls._ignoreUntil = Date.now() + 350;
 
-  // close when clicking outside — respects the small ignore window
   setTimeout(() => {
     const outsideHandler = (ev) => {
       if (!controls.contains(ev.target)) {
@@ -723,7 +758,6 @@ function showTextEditorControls(action, pageObj, canvasRect, isExisting = true) 
 }
 
 // Utility to open editor for a new text action area (used on creation)
-// NOTE: we DO NOT push temporary action; action is only created when user commits
 function openEditorForNewText(x, y, width, height, pageObj, canvasRect) {
   const tempAction = {
     type: 'text',
@@ -810,21 +844,10 @@ function initAnnotCanvas(canvas, pageObj) {
         x1: x, y1: y, x2: x, y2: y,
       };
     } else if (currentTool === 'text') {
-      // NEW BEHAVIOR: open text editor on a single click at pointer location
-      // Use default width/height (user may resize)
       const DEFAULT_TEXT_WIDTH = 600;
       const DEFAULT_TEXT_HEIGHT = 40;
-
-      // Prevent the original event from propagating (avoids races that can close the editor)
-      try {
-        e.preventDefault();
-        e.stopPropagation();
-      } catch (err) { /* some environments may not allow */ }
-
-      // Open editor immediately and DO NOT set currentPath/drawing — action is created only on commit
+      try { e.preventDefault(); e.stopPropagation(); } catch (err) { }
       openEditorForNewText(x, y, DEFAULT_TEXT_WIDTH, DEFAULT_TEXT_HEIGHT, pageObj, rect);
-
-      // ensure we don't consider this as an active drawing
       drawing = false;
       currentPath = null;
       return;
@@ -852,7 +875,6 @@ function initAnnotCanvas(canvas, pageObj) {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     for (const a of pageObj.actions) drawAction(ctx, a);
 
-    // Draw preview for text box (single dashed rounded preview)
     if (currentPath && currentPath.type === 'text-box-preview') {
       ctx.save();
       ctx.strokeStyle = 'rgba(11,95,255,0.9)';
@@ -897,8 +919,6 @@ function initAnnotCanvas(canvas, pageObj) {
       if (width > 20 && height > 20) {
         currentPath = null;
         redrawAll();
-
-        // open editor but DO NOT push temporary action
         openEditorForNewText(x1, y1, Math.max(width, 120), Math.max(height, 28), pageObj, rect);
       } else {
         currentPath = null;
@@ -912,7 +932,6 @@ function initAnnotCanvas(canvas, pageObj) {
         const ny2 = Math.max(currentPath.y1, currentPath.y2);
         currentPath.x1 = nx1; currentPath.y1 = ny1; currentPath.x2 = nx2; currentPath.y2 = ny2;
       }
-      // arrow: keep drag direction as-is
       pushAction(currentPath);
       currentPath = null;
       redrawAll();
@@ -986,7 +1005,6 @@ function drawAction(ctx, a) {
     ctx.fillStyle = a.color || '#000';
     ctx.font = `${a.size || 16}px sans-serif`;
 
-    // Draw optional bounding box (rounded) ONLY when this action is currently selected
     if (a.width && a.height && a === selectedTextAction) {
       ctx.save();
       ctx.strokeStyle = '#0b5fff';
@@ -1034,6 +1052,8 @@ function drawAction(ctx, a) {
   }
   ctx.restore();
 }
+
+/* ------------------ Tool button wiring ------------------ */
 toolButtons.forEach((btn) => {
   btn.addEventListener('click', () => {
     const t = btn.getAttribute('data-tool');
@@ -1069,11 +1089,16 @@ redoBtn && redoBtn.addEventListener('click', () => {
 });
 closeEditorBtn && closeEditorBtn.addEventListener('click', () => {
   editorOverlay.classList.add('hidden');
+  editorOverlay.setAttribute('aria-hidden', 'true');
   pageContainer.innerHTML = '';
   editingPages = [];
+  if (thumbsInner) thumbsInner.innerHTML = '';
 });
 
-// Keyboard handler for deleting selected text action
+/* Save button wiring kept */
+doneBtn && doneBtn.addEventListener('click', exportEditedPdfAndSave);
+
+/* Keyboard handler for deleting selected text action */
 document.addEventListener('keydown', (e) => {
   if (!selectedTextAction) return;
   const fe = document.activeElement;
@@ -1094,7 +1119,7 @@ document.addEventListener('keydown', (e) => {
   }
 });
 
-// ---------- Flatten and export edited PDF ----------
+/* ------------------ Export (unchanged) ------------------ */
 async function exportEditedPdfAndSave() {
   try {
     statusEl.innerText = LANG[currentLang].status_exporting;
@@ -1145,7 +1170,136 @@ async function exportEditedPdfAndSave() {
     }, 2000);
   }
 }
-doneBtn && doneBtn.addEventListener('click', exportEditedPdfAndSave);
-// initial render
+
+/* ------------------ ZOOM / FIT logic ------------------ */
+
+function clampZoom(z) {
+  return Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, z));
+}
+
+function applyZoomToAllPages(z) {
+  zoom = clampZoom(z);
+  const wraps = Array.from(document.querySelectorAll('.page-wrap'));
+  wraps.forEach((w) => {
+    w.style.transform = `scale(${zoom})`;
+    w.style.transformOrigin = 'top center';
+  });
+  if (zoomSlider) zoomSlider.value = String(Math.round(zoom * 100));
+  if (zoomDisplay) zoomDisplay.innerText = `${Math.round(zoom * 100)}%`;
+}
+
+function zoomIn() {
+  applyZoomToAllPages(zoom * 1.15);
+}
+function zoomOut() {
+  applyZoomToAllPages(zoom / 1.15);
+}
+
+// Fit to width: compute scale so that current page fits pageContainer width
+function fitToWidth() {
+  if (!editingPages || editingPages.length === 0) return;
+  const pageObj = editingPages[currentPageIndex];
+  if (!pageObj) return;
+  const containerWidth = pageContainer.clientWidth - (thumbSidebar && !thumbSidebar.classList.contains('hidden') ? thumbSidebar.clientWidth : 0) - 48;
+  const scale = containerWidth / pageObj.origW;
+  applyZoomToAllPages(scale);
+  showPage(currentPageIndex);
+}
+
+/* wire the zoom controls */
+if (zoomInBtn) zoomInBtn.addEventListener('click', zoomIn);
+if (zoomOutBtn) zoomOutBtn.addEventListener('click', zoomOut);
+
+if (zoomSlider) {
+  zoomSlider.addEventListener('input', (e) => {
+    const pct = Number(zoomSlider.value || 100);
+    applyZoomToAllPages(pct / 100);
+  });
+  zoomSlider.addEventListener('change', () => {
+    const pct = Number(zoomSlider.value || 100);
+    applyZoomToAllPages(pct / 100);
+  });
+}
+
+/* Apply current zoom on resize so transforms remain correct */
+window.addEventListener('resize', () => {
+  applyZoomToAllPages(zoom);
+});
+
+/* initial default */
+applyZoomToAllPages(1.0);
+
+/* ------------------ PANNING (click + drag to move when zoomed) ------------------ */
+
+let isPanning = false;
+let panStartX = 0;
+let panStartY = 0;
+let scrollStartLeft = 0;
+let scrollStartTop = 0;
+
+// Start panning only when pointer tool is selected and zoom > 1 and user clicks outside annot-canvas
+pageContainer.addEventListener('mousedown', (e) => {
+  // ignore if left button not pressed
+  if (e.button !== 0) return;
+  // do not start pan when pointer tool is not active
+  if (currentTool !== 'pointer') return;
+  // only enable when zoom > 1 (meaning user zoomed in)
+  if (zoom <= 1.0001) return;
+
+  // don't pan if clicking directly on annot canvas (user likely wants to draw/edit)
+  if (e.target && (e.target.classList && e.target.classList.contains('annot-canvas')) ) return;
+  if (e.target && e.target.closest && e.target.closest('.annot-canvas')) return;
+
+  isPanning = true;
+  panStartX = e.clientX;
+  panStartY = e.clientY;
+  scrollStartLeft = pageContainer.scrollLeft;
+  scrollStartTop = pageContainer.scrollTop;
+  pageContainer.style.cursor = 'grabbing';
+  e.preventDefault();
+});
+
+document.addEventListener('mousemove', (e) => {
+  if (!isPanning) return;
+  const dx = e.clientX - panStartX;
+  const dy = e.clientY - panStartY;
+  pageContainer.scrollLeft = scrollStartLeft - dx;
+  pageContainer.scrollTop = scrollStartTop - dy;
+});
+
+document.addEventListener('mouseup', (e) => {
+  if (!isPanning) return;
+  isPanning = false;
+  pageContainer.style.cursor = '';
+});
+
+/* Touch support for panning */
+let touchPan = { active: false, startX: 0, startY: 0, sLeft: 0, sTop: 0 };
+pageContainer.addEventListener('touchstart', (e) => {
+  if (currentTool !== 'pointer') return;
+  if (zoom <= 1.0001) return;
+  if (!e.touches || e.touches.length !== 1) return;
+  const t = e.touches[0];
+  touchPan.active = true;
+  touchPan.startX = t.clientX;
+  touchPan.startY = t.clientY;
+  touchPan.sLeft = pageContainer.scrollLeft;
+  touchPan.sTop = pageContainer.scrollTop;
+}, { passive: true });
+
+pageContainer.addEventListener('touchmove', (e) => {
+  if (!touchPan.active) return;
+  const t = e.touches[0];
+  const dx = t.clientX - touchPan.startX;
+  const dy = t.clientY - touchPan.startY;
+  pageContainer.scrollLeft = touchPan.sLeft - dx;
+  pageContainer.scrollTop = touchPan.sTop - dy;
+}, { passive: true });
+
+pageContainer.addEventListener('touchend', () => {
+  touchPan.active = false;
+});
+
+/* ------------------ Initial render ------------------ */
 renderFiles();
 updateSummary();
