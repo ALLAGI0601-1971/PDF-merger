@@ -1487,4 +1487,3 @@ drawArrowHead(ctx, tempAnnotation.x1, tempAnnotation.y1, tempAnnotation.x2, temp
 applyLanguage();
 updateToolUI();
 updateColorUI();
-
