@@ -59,8 +59,8 @@ let pageRenderQueue = [];
 let isProcessingQueue = false;
 
 const MAX_IMAGE_WIDTH = 1600;
-const JPEG_QUALITY = 0.8;
-const RENDER_SCALE = 2.0;
+const JPEG_QUALITY = 0.95;
+const RENDER_SCALE = 3.0;
 const MIN_ZOOM = 0.25;
 const MAX_ZOOM = 5.0;
 const ZOOM_STEP = 0.25;
@@ -1163,24 +1163,19 @@ currentTool = 'pointer';
 updateToolUI();
 });
 // Save PDF with annotations
-// Save PDF with annotations - OPTIMIZED VERSION
 savePdfBtn && savePdfBtn.addEventListener('click', async () => {
   try {
     statusEl && (statusEl.innerText = LANG[currentLang].status_exporting);
 
-    // Ensure pdf-lib is loaded
     await ensurePdfLib();
 
-    // Wait for all pages to be rendered
     while (pageRenderQueue.length > 0 || isProcessingQueue) {
       await new Promise(resolve => setTimeout(resolve, 100));
     }
 
-    // Check if there are any annotations at all
     const hasAnnotations = editorPages.some(page => page.annotations && page.annotations.length > 0);
 
-   if (!hasAnnotations) {
-      // No annotations - save original PDF directly
+    if (!hasAnnotations) {
       const saveRes = await window.electronAPI.saveBytes('edited.pdf', window.originalPdfBytes);
       if (saveRes.success) {
         statusEl && (statusEl.innerText = `${LANG[currentLang].saved} ${saveRes.path}`);
@@ -1190,14 +1185,12 @@ savePdfBtn && savePdfBtn.addEventListener('click', async () => {
       return;
     }
 
-    // Has annotations - process only annotated pages as images
     const pdfDoc = await PDFLib.PDFDocument.create();
 
-    // Process pages in batches for better performance
-    const SAVE_BATCH_SIZE = 5;
-    let processedCount = 0;
+    // Define A4 dimensions in points
+    const A4_WIDTH = 595.28;
+    const A4_HEIGHT = 841.89;
 
-// Process pages SEQUENTIALLY to maintain order
     for (let i = 0; i < editorPages.length; i++) {
       const pageData = editorPages[i];
 
@@ -1205,76 +1198,109 @@ savePdfBtn && savePdfBtn.addEventListener('click', async () => {
 
       const hasPageAnnotations = pageData.annotations && pageData.annotations.length > 0;
 
-      if (!hasPageAnnotations) {
-        // No annotations on this page - copy original page directly
-        try {
-          const originalPage = await loadedPdfDocument.getPage(pageData.pageNumber);
-          const viewport = originalPage.getViewport({ scale: 0.75 });
+      // Create temp canvas for this page at FULL resolution
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = pageData.canvas.width; // Full resolution, no scaling down
+      tempCanvas.height = pageData.canvas.height;
+      const tempCtx = tempCanvas.getContext('2d', {
+        alpha: false,
+        desynchronized: true,
+        imageSmoothingEnabled: true,
+        imageSmoothingQuality: 'high'
+      });
 
-          // Create a minimal canvas just for this operation
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = Math.round(viewport.width);
-          tempCanvas.height = Math.round(viewport.height);
-          const tempCtx = tempCanvas.getContext('2d', {
-            alpha: false,
-            desynchronized: true
-          });
-
-          await originalPage.render({
-            canvasContext: tempCtx,
-            viewport,
-            intent: 'print'
-          }).promise;
-
-          const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
-          const bin = atob(dataUrl.split(',')[1]);
-          const arr = new Uint8Array(bin.length);
-          for (let j = 0; j < bin.length; j++) {
-            arr[j] = bin.charCodeAt(j);
-          }
-
-          const img = await pdfDoc.embedJpg(arr);
-          const { width, height } = img.scale(1);
-          const page = pdfDoc.addPage([width, height]);
-          page.drawImage(img, { x: 0, y: 0, width, height });
-
-          // Clean up immediately
-          tempCanvas.width = 0;
-          tempCanvas.height = 0;
-        } catch (err) {
-          console.error(`Error copying page ${i}:`, err);
-        }
-      } else {
-          // Has annotations - render with annotations at reduced scale
-          const scale = 0.75; // Reduce to 75% to save file size
-          const tempCanvas = document.createElement('canvas');
-          tempCanvas.width = Math.round(pageData.canvas.width * scale);
-          tempCanvas.height = Math.round(pageData.canvas.height * scale);
-        const tempCtx = tempCanvas.getContext('2d', {
-          alpha: false,
-          desynchronized: true
-        });
-      tempCtx.scale(scale, scale);
+      // Draw the base page
       tempCtx.drawImage(pageData.canvas, 0, 0, tempCanvas.width, tempCanvas.height);
 
+      // Draw annotations if present
+      if (hasPageAnnotations) {
+        for (const annot of pageData.annotations) {
+          if (annot.type === 'rectangle') {
+            tempCtx.strokeStyle = annot.color;
+            tempCtx.lineWidth = 3;
+            tempCtx.beginPath();
+            tempCtx.rect(annot.x, annot.y, annot.width, annot.height);
+            tempCtx.stroke();
+          } else if (annot.type === 'highlight') {
+            tempCtx.fillStyle = annot.color + '40';
+            tempCtx.fillRect(annot.x, annot.y, annot.width, annot.height);
+          } else if (annot.type === 'line') {
+            tempCtx.strokeStyle = annot.color;
+            tempCtx.lineWidth = 3;
+            tempCtx.lineCap = 'round';
+            tempCtx.beginPath();
+            tempCtx.moveTo(annot.x1, annot.y1);
+            tempCtx.lineTo(annot.x2, annot.y2);
+            tempCtx.stroke();
 
-        // Use JPEG for better performance (smaller file size)
-        const dataUrl = tempCanvas.toDataURL('image/jpeg', 0.85);
-        const bin = atob(dataUrl.split(',')[1]);
-        const arr = new Uint8Array(bin.length);
-        for (let j = 0; j < bin.length; j++) {
-          arr[j] = bin.charCodeAt(j);
+            const headLength = 15;
+            const angle = Math.atan2(annot.y2 - annot.y1, annot.x2 - annot.x1);
+            tempCtx.fillStyle = annot.color;
+            tempCtx.beginPath();
+            tempCtx.moveTo(annot.x2, annot.y2);
+            tempCtx.lineTo(
+              annot.x2 - headLength * Math.cos(angle - Math.PI / 6),
+              annot.y2 - headLength * Math.sin(angle - Math.PI / 6)
+            );
+            tempCtx.lineTo(
+              annot.x2 - headLength * Math.cos(angle + Math.PI / 6),
+              annot.y2 - headLength * Math.sin(angle + Math.PI / 6)
+            );
+            tempCtx.closePath();
+            tempCtx.fill();
+          } else if (annot.type === 'pen') {
+            if (annot.points.length < 2) continue;
+            tempCtx.strokeStyle = annot.color;
+            tempCtx.lineWidth = 3;
+            tempCtx.lineCap = 'round';
+            tempCtx.lineJoin = 'round';
+            tempCtx.beginPath();
+            tempCtx.moveTo(annot.points[0].x, annot.points[0].y);
+            for (let j = 1; j < annot.points.length; j++) {
+              tempCtx.lineTo(annot.points[j].x, annot.points[j].y);
+            }
+            tempCtx.stroke();
+          } else if (annot.type === 'text') {
+            tempCtx.fillStyle = annot.color;
+            tempCtx.font = `${annot.fontSize || 24}px Arial`;
+            tempCtx.fillText(annot.text, annot.x, annot.y);
+          }
         }
-
-        const img = await pdfDoc.embedJpg(arr);
-        const { width, height } = img.scale(1);
-        const page = pdfDoc.addPage([width, height]);
-        page.drawImage(img, { x: 0, y: 0, width, height });
-
-        // Clean up immediately
-        tempCanvas.width = 0;
-        tempCanvas.height = 0;
       }
+
+      // Convert to high-quality PNG for better clarity
+      const dataUrl = tempCanvas.toDataURL('image/png');
+      const bin = atob(dataUrl.split(',')[1]);
+      const arr = new Uint8Array(bin.length);
+      for (let j = 0; j < bin.length; j++) {
+        arr[j] = bin.charCodeAt(j);
+      }
+
+      // Embed as PNG to preserve quality
+      const img = await pdfDoc.embedPng(arr);
+
+      // Get original dimensions
+      const imgWidth = img.width;
+      const imgHeight = img.height;
+
+      // Calculate scale to fit A4 while maintaining aspect ratio
+      const scaleToFitWidth = A4_WIDTH / imgWidth;
+      const scaleToFitHeight = A4_HEIGHT / imgHeight;
+      const finalScale = Math.min(scaleToFitWidth, scaleToFitHeight);
+
+      const scaledWidth = imgWidth * finalScale;
+      const scaledHeight = imgHeight * finalScale;
+
+      // Center on A4 page
+      const x = (A4_WIDTH - scaledWidth) / 2;
+      const y = (A4_HEIGHT - scaledHeight) / 2;
+
+      const page = pdfDoc.addPage([A4_WIDTH, A4_HEIGHT]);
+      page.drawImage(img, { x, y, width: scaledWidth, height: scaledHeight });
+
+      // Clean up
+      tempCanvas.width = 0;
+      tempCanvas.height = 0;
 
       // Update progress
       const progress = Math.round(((i + 1) / editorPages.length) * 100);
@@ -1282,7 +1308,6 @@ savePdfBtn && savePdfBtn.addEventListener('click', async () => {
         statusEl.innerText = `${LANG[currentLang].status_exporting} ${progress}%`;
       }
 
-      // Allow UI to breathe every 3 pages
       if (i % 3 === 0) {
         await new Promise(resolve => setTimeout(resolve, 0));
       }
