@@ -1,6 +1,6 @@
 {
   "name": "pdf-merger-electron",
-  "version": "2.1.3",
+  "version": "2.1.4",
   "description": "Local PDF + Image merger (Electron) - modern UI, optimized binary transfer",
   "main": "main.js",
   "author": {
@@ -39,7 +39,7 @@
   },
   "build": {
     "appId": "com.utsavadhikari.pdfmerger",
-    "productName": "PDF Merger",
+    "productName": "PDF-Merger",
     "copyright": "Copyright © 2025 Utsav Adhikari",
     "compression": "maximum",
     "directories": {
