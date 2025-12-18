@@ -2612,14 +2612,7 @@ window.createUpdateModal = function () {
 
     switch (state) {
       case "checking":
-        title.textContent = isJapanese
-          ? "アップデートを確認中..."
-          : "Checking for updates...";
-        message.textContent = isJapanese
-          ? "最新バージョンを確認しています"
-          : "Checking for latest version";
-        statusText.textContent = isJapanese ? "確認中..." : "Checking...";
-        break;
+        return;
 
       case "available":
         title.textContent = isJapanese
@@ -2692,30 +2685,28 @@ window.createUpdateModal = function () {
 
   // ✅ Listen to update events from main process
   if (window.electronAPI) {
-    // Checking for updates
+    // Checking for updates (SILENT - no UI)
     window.electronAPI.onUpdateChecking &&
       window.electronAPI.onUpdateChecking((data) => {
-        console.log("🔍 Update check started");
+        console.log("🔍 Update check started (silent background check)");
         updateState.checking = true;
-        showModal();
-        updateUI("checking");
       });
 
-    // Update available
+    // Update available - NOW show the modal
     window.electronAPI.onUpdateAvailable &&
       window.electronAPI.onUpdateAvailable((data) => {
-        console.log("✅ Update available:", data.version);
+        console.log("✅ Update available:", data.version, "- SHOWING MODAL");
         updateState.available = true;
         updateState.checking = false;
+        showModal(); // ✅ Show modal ONLY when update exists
         updateUI("available", data);
       });
 
-    // Update not available
+    // Update not available (SILENT - no UI)
     window.electronAPI.onUpdateNotAvailable &&
       window.electronAPI.onUpdateNotAvailable((data) => {
-        console.log("✅ No updates available");
+        console.log("✅ No updates available (silent - no notification)");
         updateState.checking = false;
-        updateUI("not-available");
       });
 
     // Download progress

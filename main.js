@@ -97,23 +97,20 @@ if (autoUpdater) {
 
   autoUpdater.on("checking-for-update", () => {
     log.info("\n" + "=".repeat(60));
-    log.info("🔍 UPDATE CHECK STARTED");
+    log.info("🔍 UPDATE CHECK STARTED (SILENT)");
     log.info("=".repeat(60));
     log.info(`Timestamp: ${new Date().toISOString()}`);
     log.info(`Current Version: ${app.getVersion()}`);
     log.info(`Feed URL: ${autoUpdater.getFeedURL()}`);
-    log.info("Querying GitHub releases API...");
+    log.info("Querying GitHub releases API silently...");
 
-    sendStatusToWindow("update-checking", {
-      message: "アップデートを確認中...",
-      messageEn: "Checking for updates...",
-    });
+    // ❌ REMOVED: Don't send status to window during check
+    // This keeps the check silent in the background
   });
 
-  // 2. Update available - Show modal immediately
   autoUpdater.on("update-available", (info) => {
     log.info("\n" + "=".repeat(60));
-    log.info("✅ UPDATE AVAILABLE");
+    log.info("✅ UPDATE AVAILABLE - SHOWING MODAL");
     log.info("=".repeat(60));
     log.info(`Current Version: ${app.getVersion()}`);
     log.info(`New Version: ${info.version}`);
@@ -130,6 +127,7 @@ if (autoUpdater) {
 
     updateInfo = info;
 
+    // ✅ NOW show the modal since update is actually available
     sendStatusToWindow("update-available", {
       version: info.version,
       currentVersion: app.getVersion(),
@@ -143,21 +141,20 @@ if (autoUpdater) {
     log.info("📥 Starting automatic download...");
   });
 
-  // 3. No update available
   autoUpdater.on("update-not-available", (info) => {
     log.info("\n" + "=".repeat(60));
-    log.info("✅ NO UPDATE AVAILABLE");
+    log.info("✅ NO UPDATE AVAILABLE - STAYING SILENT");
     log.info("=".repeat(60));
     log.info(`Current Version: ${app.getVersion()}`);
     log.info(`Latest Version: ${info.version}`);
     log.info(`Release Date: ${info.releaseDate || "N/A"}`);
     log.info("App is already on the latest version");
+    log.info("No UI notification needed");
     log.info("=".repeat(60) + "\n");
 
-    sendStatusToWindow("update-not-available", {
-      message: "最新バージョンを使用中です",
-      messageEn: "You are using the latest version",
-    });
+    // ❌ REMOVED: Don't notify user when no update exists
+    // Silent background check completed successfully
+
     updateCheckInProgress = false;
   });
 
@@ -396,16 +393,15 @@ function createWindow() {
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
 
-    // ✅ Show update modal immediately if packaged
+    // ✅ Initialize update modal system (but don't show it)
     if (app.isPackaged && autoUpdater) {
-      // Create update modal overlay immediately
       mainWindow.webContents.executeJavaScript(`
         window.createUpdateModal && window.createUpdateModal();
       `);
 
-      // ✅ Check for updates after 2 seconds
+      // ✅ Check for updates silently in background after 2 seconds
       setTimeout(() => {
-        log.info("🚀 Starting automatic update check...");
+        log.info("🚀 Starting silent background update check...");
         checkForUpdates(false);
       }, 2000);
     }
