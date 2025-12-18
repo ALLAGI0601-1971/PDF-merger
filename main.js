@@ -62,92 +62,99 @@ let updateCheckInProgress = false;
 
 // Configure auto-updater (only if available)
 if (autoUpdater) {
-  autoUpdater.autoDownload = false;
+  autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
+
+  //GitHub repository
+  autoUpdater.setFeedURL({
+    provider: "github",
+    owner: "AllagikhabyshikiGaisya",
+    repo: "PDF-merger",
+    releaseType: "release",
+  });
+
+  let updateDownloadProgress = 0;
+  let updateInfo = null;
 
   // Update event handlers
   autoUpdater.on("checking-for-update", () => {
     log.info("Checking for updates...");
-    sendStatusToWindow("update-checking", "Checking for updates...");
+    sendStatusToWindow("update-checking", {
+      message: "アップデートを確認中...",
+      messageEn: "Checking for updates...",
+    });
   });
 
+  // 2. Update available - Show modal immediately
   autoUpdater.on("update-available", (info) => {
-    log.info("Update available:", info.version);
+    log.info("✅ Update available:", info.version);
+    updateInfo = info;
+
     sendStatusToWindow("update-available", {
       version: info.version,
+      currentVersion: app.getVersion(),
       releaseDate: info.releaseDate,
-      size: info.files[0]?.size || 0,
+      message: `新しいバージョン ${info.version} が利用可能です`,
+      messageEn: `New version ${info.version} is available`,
+      autoDownloading: true,
     });
 
-    // Ask user if they want to download
-    dialog
-      .showMessageBox(mainWindow, {
-        type: "info",
-        title: "Update Available",
-        message: `New version ${info.version} is available!`,
-        detail: `Current version: ${app.getVersion()}\n\nWould you like to download it now? The app will continue working while downloading.`,
-        buttons: ["Download Now", "Remind Me Later"],
-        defaultId: 0,
-        cancelId: 1,
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          autoUpdater.downloadUpdate();
-          sendStatusToWindow("update-downloading", "Downloading update...");
-        }
-      });
+    // ✅ Update will auto-download because autoDownload = true
+    log.info("📥 Starting automatic download...");
   });
 
+  // 3. No update available
   autoUpdater.on("update-not-available", (info) => {
-    log.info("No updates available");
-    sendStatusToWindow(
-      "update-not-available",
-      "You are using the latest version"
-    );
+    log.info("✅ App is up to date");
+    sendStatusToWindow("update-not-available", {
+      message: "最新バージョンを使用中です",
+      messageEn: "You are using the latest version",
+    });
     updateCheckInProgress = false;
   });
 
   autoUpdater.on("error", (err) => {
-    log.error("Update error:", err);
-    sendStatusToWindow("update-error", err.message);
+    log.error("❌ Update error:", err);
+    sendStatusToWindow("update-error", {
+      message: "アップデートエラーが発生しました",
+      messageEn: "Update error occurred",
+      error: err.message,
+      canRetry: true,
+    });
     updateCheckInProgress = false;
   });
 
+  // 4. Download progress
   autoUpdater.on("download-progress", (progressObj) => {
+    updateDownloadProgress = Math.round(progressObj.percent);
     const message = {
-      percent: Math.round(progressObj.percent),
+      percent: updateDownloadProgress,
       transferred:
         Math.round((progressObj.transferred / 1024 / 1024) * 10) / 10,
       total: Math.round((progressObj.total / 1024 / 1024) * 10) / 10,
       bytesPerSecond: Math.round(progressObj.bytesPerSecond / 1024),
     };
-    log.info(`Download progress: ${message.percent}%`);
+
+    log.info(`📥 Download progress: ${message.percent}%`);
     sendStatusToWindow("update-progress", message);
   });
 
+  // 5. Update downloaded - Force restart
   autoUpdater.on("update-downloaded", (info) => {
-    log.info("Update downloaded:", info.version);
-    sendStatusToWindow("update-downloaded", info.version);
+    log.info("✅ Update downloaded:", info.version);
+    sendStatusToWindow("update-downloaded", {
+      version: info.version,
+      message: "アップデートをインストール中...",
+      messageEn: "Installing update...",
+    });
 
-    dialog
-      .showMessageBox(mainWindow, {
-        type: "info",
-        title: "Update Ready",
-        message: "Update downloaded successfully!",
-        detail: `Version ${info.version} has been downloaded and is ready to install.\n\nThe application will restart to complete the installation.`,
-        buttons: ["Restart Now", "Restart Later"],
-        defaultId: 0,
-        cancelId: 1,
-      })
-      .then((result) => {
-        if (result.response === 0) {
-          setImmediate(() => {
-            app.removeAllListeners("window-all-closed");
-            autoUpdater.quitAndInstall(false, true);
-          });
-        }
-      });
+    // ✅ Force quit and install after 2 seconds (no user interaction)
+    setTimeout(() => {
+      log.info("🔄 Forcing app restart to install update...");
+      app.removeAllListeners("window-all-closed");
+      autoUpdater.quitAndInstall(false, true);
+    }, 2000);
   });
 }
 
@@ -288,15 +295,21 @@ function createWindow() {
 
   mainWindow.loadFile("index.html");
 
-  // Show window when ready to prevent flickering
   mainWindow.once("ready-to-show", () => {
     mainWindow.show();
 
-    // Check for updates 3 seconds after app starts
+    // ✅ Show update modal immediately if packaged
     if (app.isPackaged && autoUpdater) {
+      // Create update modal overlay immediately
+      mainWindow.webContents.executeJavaScript(`
+        window.createUpdateModal && window.createUpdateModal();
+      `);
+
+      // ✅ Check for updates after 2 seconds
       setTimeout(() => {
+        log.info("🚀 Starting automatic update check...");
         checkForUpdates(false);
-      }, 3000);
+      }, 2000);
     }
   });
 

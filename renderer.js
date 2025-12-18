@@ -2546,6 +2546,238 @@ function renderAnnotations() {
     }
   }
 }
+
+// ============= FORCED AUTO-UPDATE SYSTEM =============
+
+/**
+ * Create and manage forced update modal
+ */
+window.createUpdateModal = function () {
+  const modal = document.getElementById("updateModal");
+  const title = document.getElementById("updateTitle");
+  const message = document.getElementById("updateMessage");
+  const progressSection = document.getElementById("updateProgressSection");
+  const progressBar = document.getElementById("updateProgressBar");
+  const progressPercent = document.getElementById("updateProgressPercent");
+  const progressSize = document.getElementById("updateProgressSize");
+  const progressSpeed = document.getElementById("updateProgressSpeed");
+  const versionInfo = document.getElementById("updateVersionInfo");
+  const currentVersionEl = document.getElementById("updateCurrentVersion");
+  const newVersionEl = document.getElementById("updateNewVersion");
+  const status = document.getElementById("updateStatus");
+  const statusText = document.getElementById("updateStatusText");
+  const errorSection = document.getElementById("updateErrorSection");
+  const errorMessage = document.getElementById("updateErrorMessage");
+  const retryBtn = document.getElementById("retryUpdateBtn");
+
+  // ✅ Language detection
+  const isJapanese = currentLang === "ja";
+
+  // ✅ State management
+  let updateState = {
+    checking: false,
+    available: false,
+    downloading: false,
+    downloaded: false,
+    error: false,
+  };
+
+  /**
+   * Show modal with specific state
+   */
+  function showModal() {
+    modal.style.display = "flex";
+    // ✅ Prevent closing modal
+    modal.onclick = (e) => {
+      if (e.target === modal) {
+        e.stopPropagation();
+        e.preventDefault();
+      }
+    };
+  }
+
+  function hideModal() {
+    modal.style.display = "none";
+  }
+
+  /**
+   * Update UI based on state
+   */
+  function updateUI(state, data = {}) {
+    // Hide all sections first
+    progressSection.style.display = "none";
+    versionInfo.style.display = "none";
+    errorSection.style.display = "none";
+    status.style.display = "flex";
+
+    switch (state) {
+      case "checking":
+        title.textContent = isJapanese
+          ? "アップデートを確認中..."
+          : "Checking for updates...";
+        message.textContent = isJapanese
+          ? "最新バージョンを確認しています"
+          : "Checking for latest version";
+        statusText.textContent = isJapanese ? "確認中..." : "Checking...";
+        break;
+
+      case "available":
+        title.textContent = isJapanese
+          ? "新しいバージョンが利用可能"
+          : "New Version Available";
+        message.textContent = isJapanese
+          ? `バージョン ${data.version} をダウンロード中です`
+          : `Downloading version ${data.version}`;
+        versionInfo.style.display = "block";
+        currentVersionEl.textContent = data.currentVersion;
+        newVersionEl.textContent = data.version;
+        statusText.textContent = isJapanese
+          ? "ダウンロード準備中..."
+          : "Preparing download...";
+        break;
+
+      case "downloading":
+        title.textContent = isJapanese
+          ? "アップデートをダウンロード中"
+          : "Downloading Update";
+        message.textContent = isJapanese
+          ? "しばらくお待ちください。自動的にインストールされます。"
+          : "Please wait. Installation will begin automatically.";
+        progressSection.style.display = "block";
+        versionInfo.style.display = "block";
+        progressBar.style.width = `${data.percent || 0}%`;
+        progressPercent.textContent = `${data.percent || 0}%`;
+        progressSize.textContent = `${data.transferred || 0} MB / ${
+          data.total || 0
+        } MB`;
+        progressSpeed.textContent = `${data.bytesPerSecond || 0} KB/s`;
+        statusText.textContent = isJapanese
+          ? "ダウンロード中..."
+          : "Downloading...";
+        break;
+
+      case "downloaded":
+        title.textContent = isJapanese ? "アップデート完了" : "Update Complete";
+        message.textContent = isJapanese
+          ? "アプリを再起動してインストールしています..."
+          : "Restarting app to install update...";
+        progressSection.style.display = "block";
+        progressBar.style.width = "100%";
+        progressPercent.textContent = "100%";
+        statusText.textContent = isJapanese ? "再起動中..." : "Restarting...";
+        break;
+
+      case "not-available":
+        title.textContent = isJapanese ? "最新バージョンです" : "Up to Date";
+        message.textContent = isJapanese
+          ? "最新バージョンを使用しています"
+          : "You are using the latest version";
+        status.style.display = "none";
+        // ✅ Auto-hide after 2 seconds
+        setTimeout(hideModal, 2000);
+        break;
+
+      case "error":
+        title.textContent = isJapanese ? "アップデートエラー" : "Update Error";
+        message.textContent = isJapanese
+          ? "アップデートの確認中にエラーが発生しました"
+          : "An error occurred while checking for updates";
+        errorSection.style.display = "block";
+        errorMessage.textContent =
+          data.error || (isJapanese ? "不明なエラー" : "Unknown error");
+        status.style.display = "none";
+        break;
+    }
+  }
+
+  // ✅ Listen to update events from main process
+  if (window.electronAPI) {
+    // Checking for updates
+    window.electronAPI.onUpdateChecking &&
+      window.electronAPI.onUpdateChecking((data) => {
+        console.log("🔍 Update check started");
+        updateState.checking = true;
+        showModal();
+        updateUI("checking");
+      });
+
+    // Update available
+    window.electronAPI.onUpdateAvailable &&
+      window.electronAPI.onUpdateAvailable((data) => {
+        console.log("✅ Update available:", data.version);
+        updateState.available = true;
+        updateState.checking = false;
+        updateUI("available", data);
+      });
+
+    // Update not available
+    window.electronAPI.onUpdateNotAvailable &&
+      window.electronAPI.onUpdateNotAvailable((data) => {
+        console.log("✅ No updates available");
+        updateState.checking = false;
+        updateUI("not-available");
+      });
+
+    // Download progress
+    window.electronAPI.onUpdateProgress &&
+      window.electronAPI.onUpdateProgress((data) => {
+        console.log(`📥 Download progress: ${data.percent}%`);
+        updateState.downloading = true;
+        updateUI("downloading", data);
+      });
+
+    // Update downloaded
+    window.electronAPI.onUpdateDownloaded &&
+      window.electronAPI.onUpdateDownloaded((data) => {
+        console.log("✅ Update downloaded:", data.version);
+        updateState.downloaded = true;
+        updateState.downloading = false;
+        updateUI("downloaded", data);
+      });
+
+    // Update error
+    window.electronAPI.onUpdateError &&
+      window.electronAPI.onUpdateError((data) => {
+        console.error("❌ Update error:", data.error);
+        updateState.error = true;
+        updateState.checking = false;
+        updateState.downloading = false;
+        updateUI("error", data);
+      });
+  }
+
+  // ✅ Retry button handler
+  retryBtn.addEventListener("click", async () => {
+    console.log("🔄 Retrying update check...");
+    updateState = {
+      checking: true,
+      available: false,
+      downloading: false,
+      downloaded: false,
+      error: false,
+    };
+    updateUI("checking");
+
+    if (window.electronAPI && window.electronAPI.checkForUpdates) {
+      try {
+        await window.electronAPI.checkForUpdates();
+      } catch (err) {
+        console.error("Retry failed:", err);
+      }
+    }
+  });
+
+  console.log("✅ Update modal system initialized");
+};
+
+// ✅ Initialize on page load
+if (document.readyState === "loading") {
+  document.addEventListener("DOMContentLoaded", () => {
+    window.createUpdateModal && window.createUpdateModal();
+  });
+} else {
+  window.createUpdateModal && window.createUpdateModal();
+}
 // Initialize
 applyLanguage();
 updateToolUI();
