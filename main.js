@@ -66,20 +66,44 @@ if (autoUpdater) {
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
 
+  // Enhanced logging
+  log.info("=".repeat(60));
+  log.info("🔧 AUTO-UPDATER INITIALIZATION");
+  log.info("=".repeat(60));
+  log.info(`Current Version: ${app.getVersion()}`);
+  log.info(`App Name: ${app.getName()}`);
+  log.info(`Is Packaged: ${app.isPackaged}`);
+  log.info(`Platform: ${process.platform}`);
+  log.info(`Arch: ${process.arch}`);
+
   //GitHub repository
-  autoUpdater.setFeedURL({
+  const feedConfig = {
     provider: "github",
     owner: "AllagikhabyshikiGaisya",
     repo: "PDF-merger",
     releaseType: "release",
-  });
+  };
+
+  log.info("GitHub Feed Configuration:", feedConfig);
+  autoUpdater.setFeedURL(feedConfig);
+
+  // Verify feed URL was set
+  const feedURL = autoUpdater.getFeedURL();
+  log.info(`Feed URL set to: ${feedURL}`);
+  log.info("=".repeat(60));
 
   let updateDownloadProgress = 0;
   let updateInfo = null;
 
-  // Update event handlers
   autoUpdater.on("checking-for-update", () => {
-    log.info("Checking for updates...");
+    log.info("\n" + "=".repeat(60));
+    log.info("🔍 UPDATE CHECK STARTED");
+    log.info("=".repeat(60));
+    log.info(`Timestamp: ${new Date().toISOString()}`);
+    log.info(`Current Version: ${app.getVersion()}`);
+    log.info(`Feed URL: ${autoUpdater.getFeedURL()}`);
+    log.info("Querying GitHub releases API...");
+
     sendStatusToWindow("update-checking", {
       message: "アップデートを確認中...",
       messageEn: "Checking for updates...",
@@ -88,7 +112,22 @@ if (autoUpdater) {
 
   // 2. Update available - Show modal immediately
   autoUpdater.on("update-available", (info) => {
-    log.info("✅ Update available:", info.version);
+    log.info("\n" + "=".repeat(60));
+    log.info("✅ UPDATE AVAILABLE");
+    log.info("=".repeat(60));
+    log.info(`Current Version: ${app.getVersion()}`);
+    log.info(`New Version: ${info.version}`);
+    log.info(`Release Date: ${info.releaseDate}`);
+    log.info(`Release Notes: ${info.releaseNotes || "N/A"}`);
+    log.info(
+      `Files to download:`,
+      info.files?.map((f) => ({
+        url: f.url,
+        size: `${Math.round(f.size / 1024 / 1024)}MB`,
+      }))
+    );
+    log.info("=".repeat(60));
+
     updateInfo = info;
 
     sendStatusToWindow("update-available", {
@@ -106,7 +145,15 @@ if (autoUpdater) {
 
   // 3. No update available
   autoUpdater.on("update-not-available", (info) => {
-    log.info("✅ App is up to date");
+    log.info("\n" + "=".repeat(60));
+    log.info("✅ NO UPDATE AVAILABLE");
+    log.info("=".repeat(60));
+    log.info(`Current Version: ${app.getVersion()}`);
+    log.info(`Latest Version: ${info.version}`);
+    log.info(`Release Date: ${info.releaseDate || "N/A"}`);
+    log.info("App is already on the latest version");
+    log.info("=".repeat(60) + "\n");
+
     sendStatusToWindow("update-not-available", {
       message: "最新バージョンを使用中です",
       messageEn: "You are using the latest version",
@@ -115,7 +162,37 @@ if (autoUpdater) {
   });
 
   autoUpdater.on("error", (err) => {
-    log.error("❌ Update error:", err);
+    log.error("\n" + "=".repeat(60));
+    log.error("❌ UPDATE ERROR");
+    log.error("=".repeat(60));
+    log.error(`Error Type: ${err.name}`);
+    log.error(`Error Message: ${err.message}`);
+    log.error(`Error Stack:`, err.stack);
+    log.error(`Current Version: ${app.getVersion()}`);
+    log.error(`Feed URL: ${autoUpdater.getFeedURL()}`);
+
+    // Additional diagnostic info
+    if (err.message.includes("404")) {
+      log.error("⚠️ DIAGNOSIS: GitHub release not found (404)");
+      log.error("   - Check that release v2.1.3 exists in GitHub");
+      log.error("   - Verify release is published (not draft)");
+      log.error("   - Confirm release assets are attached");
+    } else if (err.message.includes("rate limit")) {
+      log.error("⚠️ DIAGNOSIS: GitHub API rate limit exceeded");
+      log.error("   - Wait 1 hour or use authenticated requests");
+    } else if (
+      err.message.includes("ENOTFOUND") ||
+      err.message.includes("ETIMEDOUT")
+    ) {
+      log.error("⚠️ DIAGNOSIS: Network connectivity issue");
+      log.error("   - Check internet connection");
+      log.error("   - Verify GitHub is accessible");
+    } else if (err.message.includes("Could not get code signature")) {
+      log.error("⚠️ DIAGNOSIS: Code signing issue (can be ignored in testing)");
+    }
+
+    log.error("=".repeat(60) + "\n");
+
     sendStatusToWindow("update-error", {
       message: "アップデートエラーが発生しました",
       messageEn: "Update error occurred",
@@ -164,10 +241,9 @@ function sendStatusToWindow(channel, data) {
   }
 }
 
-// Check for updates (only in production)
 function checkForUpdates(showNoUpdateDialog = false) {
   if (!app.isPackaged || !autoUpdater) {
-    console.log("Auto-update not available");
+    console.log("Auto-update not available in development mode");
     if (showNoUpdateDialog) {
       dialog.showMessageBox(mainWindow, {
         type: "info",
@@ -180,16 +256,32 @@ function checkForUpdates(showNoUpdateDialog = false) {
   }
 
   if (updateCheckInProgress) {
-    log.info("Update check already in progress");
+    log.info("⏳ Update check already in progress - skipping");
     return;
   }
+
+  log.info("\n" + "🚀 ".repeat(30));
+  log.info("INITIATING UPDATE CHECK");
+  log.info("🚀 ".repeat(30));
+  log.info(`Trigger: ${showNoUpdateDialog ? "Manual" : "Automatic"}`);
+  log.info(`Timestamp: ${new Date().toISOString()}`);
 
   updateCheckInProgress = true;
 
   autoUpdater
     .checkForUpdates()
     .then((result) => {
-      if (showNoUpdateDialog && !result.updateInfo.version) {
+      log.info("\n📦 UPDATE CHECK RESULT:");
+      log.info(`Update Info:`, JSON.stringify(result.updateInfo, null, 2));
+      log.info(
+        `Cancellation Token: ${result.cancellationToken ? "Active" : "None"}`
+      );
+
+      const hasUpdate = result.updateInfo.version !== app.getVersion();
+      log.info(`Has Update: ${hasUpdate}`);
+
+      if (showNoUpdateDialog && !hasUpdate) {
+        log.info("Showing 'no update' dialog to user");
         dialog.showMessageBox(mainWindow, {
           type: "info",
           title: "No Updates",
@@ -199,14 +291,20 @@ function checkForUpdates(showNoUpdateDialog = false) {
       }
     })
     .catch((err) => {
-      log.error("Update check failed:", err);
+      log.error("\n💥 UPDATE CHECK FAILED:");
+      log.error(`Error: ${err.message}`);
+      log.error(`Stack: ${err.stack}`);
+      log.error(`Code: ${err.code || "N/A"}`);
+
       updateCheckInProgress = false;
+
       if (showNoUpdateDialog) {
+        log.error("Showing error dialog to user");
         dialog.showMessageBox(mainWindow, {
           type: "error",
           title: "Update Check Failed",
           message: "Could not check for updates",
-          detail: err.message,
+          detail: `${err.message}\n\nCheck logs for details.`,
           buttons: ["OK"],
         });
       }
