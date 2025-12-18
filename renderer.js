@@ -20,8 +20,6 @@ document.addEventListener("DOMContentLoaded", () => {
   // Initialize feature manager
   featureManager.init(mainApp, featureContainer);
 
-  console.log("âœ… Feature system initialized");
-
   // Register features
   registerFeatures();
 
@@ -56,8 +54,6 @@ function registerFeatures() {
   // Future features can be registered here
   // featureManager.register('page-organizer', { ... });
   // featureManager.register('pdf-compress', { ... });
-
-  console.log("✅ Features registered:", featureManager.list());
 }
 
 /**
@@ -477,7 +473,6 @@ async function handleFileList(fileList) {
     inputFiles.map(async (file) => {
       // Validate file type
       if (!/\.(pdf|png|jpe?g|jpg)$/i.test(file.name)) {
-        console.log(`Skipping invalid file type: ${file.name}`);
         return null;
       }
 
@@ -495,9 +490,7 @@ async function handleFileList(fileList) {
             }
             return null;
           }
-          console.log(
-            `📄 PDF loaded: ${file.name}, size: ${ab.byteLength} bytes`
-          );
+
           processedFiles++;
           if (loadingCount) {
             loadingCount.innerText = `${processedFiles} / ${totalFiles}`;
@@ -754,8 +747,6 @@ async function normalizeFilesToPdfUploadsWithValidation(
   const out = [];
   const skipped = [];
 
-  console.log(`📄 Starting normalization for ${fileList.length} files`);
-
   // ✅ FIX: Process in smaller batches to ensure data integrity and smooth progress
   const BATCH_SIZE = 10;
   let processedCount = 0;
@@ -800,8 +791,6 @@ async function normalizeFilesToPdfUploadsWithValidation(
             );
             return { skipped: { name: f.name, reason: "zero-length-buffer" } };
           }
-
-          console.log(`✅ Normalized ${f.name}: ${bytes.byteLength} bytes`);
 
           return {
             success: {
