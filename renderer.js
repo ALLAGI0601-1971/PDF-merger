@@ -2728,7 +2728,6 @@ window.createUpdateModal = function () {
 
   // ✅ Retry button handler
   retryBtn.addEventListener("click", async () => {
-    console.log("🔄 Retrying update check...");
     updateState = {
       checking: true,
       available: false,
