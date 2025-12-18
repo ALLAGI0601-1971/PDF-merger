@@ -2746,8 +2746,6 @@ window.createUpdateModal = function () {
       }
     }
   });
-
-  console.log("✅ Update modal system initialized");
 };
 
 // ✅ Initialize on page load
