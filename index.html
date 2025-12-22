@@ -103,19 +103,42 @@
             <div class="feature-about">各 PDF ページを JPG に変換します。</div>
           </div>
         </div>
-
+        <!-- pdf editor -->
         <div class="feature editor-wrapper" id="mergeEditBtn">
           <img class="feature-icon" src="./icons/edit-icon.png" alt="editor" />
           <div class="feature-detail">
-            <div class="feature-name">結合して編集</div>
+            <div class="feature-name" id="mergeEditBtnText">結合して編集</div>
             <div class="feature-about">
               テキストやハイライトをさまざまな色で追加して、PDF
               を強調表示します。
             </div>
           </div>
         </div>
+        <div class="feature compress-wrapper" id="pdfCompressBtn">
+          <img
+            class="feature-icon"
+            src="./icons/compress-icon.png"
+            alt="compress"
+          />
+          <div class="feature-detail">
+            <div class="feature-name" id="compressBtnText">PDF圧縮</div>
+            <div class="feature-about">
+              PDFファイルのサイズを大幅に削減し、共有や保存を簡単にします。
+            </div>
+          </div>
+        </div>
+        <div class="feature rotate-wrapper" id="pdfRotateBtn">
+          <img
+            class="feature-icon"
+            src="./icons/rotate-icon.png"
+            alt="Rotate PDF"
+          />
+          <div class="feature-detail">
+            <div class="feature-name" id="rotateBtnText">PDF回転</div>
+            <div class="feature-about">Rotate PDF pages clockwise</div>
+          </div>
+        </div>
       </main>
-
       <footer class="footer">
         <small id="footerText">ドラッグで並び替え、×で削除できます。</small>
         <div class="developer-credit">
@@ -126,7 +149,6 @@
         </div>
       </footer>
     </div>
-
     <!-- NEW: Feature Container (All new features load here) -->
     <div id="featureContainer" style="display: none"></div>
 
@@ -204,7 +226,6 @@
         </div>
       </div>
     </div>
-
     <script type="module" src="./renderer.js"></script>
   </body>
 </html>

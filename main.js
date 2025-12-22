@@ -1037,3 +1037,87 @@ ipcMain.handle(
     }
   }
 );
+// ============= CHUNKED PDF SAVE HANDLER (FOR LARGE MERGED PDFS) =============
+ipcMain.handle(
+  "save-chunked-base64",
+  async (event, { fileName, base64Chunk, isFirst, isLast }) => {
+    try {
+      // Use Downloads folder by default for merged PDFs
+      const downloadsPath = app.getPath("downloads");
+      const filePath = path.join(downloadsPath, fileName);
+
+      const buffer = Buffer.from(base64Chunk, "base64");
+
+      // Write or append
+      if (isFirst) {
+        await fs.promises.writeFile(filePath, buffer);
+        console.log(`📝 Started writing: ${fileName}`);
+      } else {
+        await fs.promises.appendFile(filePath, buffer);
+      }
+
+      if (isLast) {
+        console.log(`✅ Completed writing: ${fileName}`);
+        return { success: true, path: filePath };
+      }
+
+      return { success: true, path: filePath, partial: true };
+    } catch (err) {
+      console.error("save-chunked-base64 error:", err);
+      return { success: false, message: err.message || String(err) };
+    }
+  }
+);
+// ============= PDF COMPRESS SAVE HANDLERS =============
+ipcMain.handle("save-pdf-file", async (event, { fileName, base64Data }) => {
+  try {
+    const downloadsPath = app.getPath("downloads");
+    const filePath = path.join(downloadsPath, fileName);
+
+    const buffer = Buffer.from(base64Data, "base64");
+    await fs.promises.writeFile(filePath, buffer);
+
+    console.log(`✅ Saved compressed PDF: ${fileName}`);
+    return { success: true, path: filePath };
+  } catch (err) {
+    console.error("save-pdf-file error:", err);
+    return { success: false, message: err.message || String(err) };
+  }
+});
+
+ipcMain.handle("save-multiple-pdf-files", async (event, { files }) => {
+  try {
+    // Create timestamp folder
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hour = String(now.getHours()).padStart(2, "0");
+    const minute = String(now.getMinutes()).padStart(2, "0");
+    const folderName = `${year}${month}${day}_${hour}${minute}_compressed`;
+
+    const downloadsPath = app.getPath("downloads");
+    let folderPath = path.join(downloadsPath, folderName);
+
+    let counter = 1;
+    while (fs.existsSync(folderPath)) {
+      folderPath = path.join(downloadsPath, `${folderName}_${counter}`);
+      counter++;
+    }
+
+    await fs.promises.mkdir(folderPath, { recursive: true });
+
+    // Save all files
+    for (const file of files) {
+      const filePath = path.join(folderPath, file.name);
+      const buffer = Buffer.from(file.base64Data, "base64");
+      await fs.promises.writeFile(filePath, buffer);
+    }
+
+    console.log(`✅ Saved ${files.length} compressed PDFs to: ${folderPath}`);
+    return { success: true, path: folderPath };
+  } catch (err) {
+    console.error("save-multiple-pdf-files error:", err);
+    return { success: false, message: err.message || String(err) };
+  }
+});

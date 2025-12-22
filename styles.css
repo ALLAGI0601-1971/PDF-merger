@@ -169,6 +169,9 @@ body {
 .editor-wrapper {
   --shadow-color: #bbeebb;
 }
+.compress-wrapper {
+  --shadow-color: #a4b8ba;
+}
 
 .text-input-overlay {
   font-family: Arial, sans-serif;

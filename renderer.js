@@ -74,7 +74,23 @@ function registerFeatures() {
     version: "1.0.0",
     path: "features/pdf-to-jpeg",
   });
+  // Register PDF Compress feature
+  featureManager.register("pdf-compress", {
+    title: "PDF圧縮",
+    titleEn: "PDF Compress",
+    description: "Compress PDF files to reduce size significantly",
+    version: "1.0.0",
+    path: "features/pdf-compress",
+  });
 
+  // Register PDF Rotate feature
+  featureManager.register("pdf-rotate", {
+    title: "PDF回転",
+    titleEn: "PDF Rotate",
+    description: "Rotate PDF pages and save",
+    version: "1.0.0",
+    path: "features/pdf-rotate",
+  });
   // Future features can be registered here
   // featureManager.register('page-organizer', { ... });
   // featureManager.register('pdf-compress', { ... });
@@ -154,12 +170,48 @@ function setupFeatureButtons() {
       }
     });
   }
+  const pdfCompressBtn = document.getElementById("pdfCompressBtn");
+  if (pdfCompressBtn) {
+    pdfCompressBtn.addEventListener("click", async () => {
+      try {
+        await featureManager.activate("pdf-compress", {
+          lang: currentLang,
+        });
+      } catch (error) {
+        console.error("Failed to open PDF Compress:", error);
+        utils.showToast("Failed to open PDF Compress feature", "error");
+      }
+    });
+  }
+  const pdfRotateBtn = document.getElementById("pdfRotateBtn");
+  if (pdfRotateBtn) {
+    pdfRotateBtn.addEventListener("click", async () => {
+      try {
+        await featureManager.activate("pdf-rotate", {
+          lang: currentLang,
+        });
+      } catch (error) {
+        console.error("Failed to open PDF Rotate:", error);
+        utils.showToast("Failed to open PDF Rotate feature", "error");
+      }
+    });
+  }
+
+  const rotateBtnText = document.getElementById("rotateBtnText");
+  if (rotateBtnText) {
+    rotateBtnText.textContent = currentLang === "ja" ? "PDF回転" : "PDF Rotate";
+  }
   // Single function to update all feature button texts
   const updateFeatureButtonTexts = () => {
     const mergePdfBtnText = document.getElementById("mergePdfBtnText");
     if (mergePdfBtnText) {
       mergePdfBtnText.textContent =
         currentLang === "ja" ? "PDF結合" : "Merge PDFs";
+    }
+    const mergeEditBtnText = document.getElementById("mergeEditBtnText");
+    if (mergeEditBtnText) {
+      mergeEditBtnText.textContent =
+        currentLang === "ja" ? "PDF結合と編集" : "Merge & Edit";
     }
     const splitBtnText = document.getElementById("splitBtnText");
     if (splitBtnText) {
@@ -175,6 +227,16 @@ function setupFeatureButtons() {
     if (pdfToJpegBtnText) {
       pdfToJpegBtnText.textContent =
         currentLang === "ja" ? "PDF JPEG 変換" : "PDF to JPEG";
+    }
+    const compressBtnText = document.getElementById("compressBtnText");
+    if (compressBtnText) {
+      compressBtnText.textContent =
+        currentLang === "ja" ? "PDF圧縮" : "PDF Compress";
+    }
+    const rotateBtnText = document.getElementById("rotateBtnText");
+    if (rotateBtnText) {
+      rotateBtnText.textContent =
+        currentLang === "ja" ? "PDF回転" : "PDF Rotate";
     }
   };
 

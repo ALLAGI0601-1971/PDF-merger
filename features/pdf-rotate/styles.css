@@ -1,0 +1,770 @@
+/* features/pdf-rotate/styles.css */
+
+:root {
+  --rotate-primary: #ba274a;
+  --rotate-primary-light: rgba(186, 39, 74, 0.1);
+  --rotate-primary-hover: #9a1f3d;
+  --rotate-accent: #d84267;
+  --cream: #fffef7;
+  --light-grey: #f5f5f5;
+  --dark: #1a1a1a;
+  --white: #ffffff;
+  --success: #10b981;
+  --danger: #ff5c5c;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.pdf-rotate-container {
+  width: 100%;
+  min-height: 100vh;
+  height: 100vh;
+  background: var(--cream);
+  position: relative;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Stage Management */
+.stage {
+  display: none;
+  animation: fadeIn 0.3s ease-out;
+  flex: 1;
+  overflow: hidden;
+}
+
+.stage.active {
+  display: flex;
+  flex-direction: column;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Upload Stage */
+.upload-header,
+.rotate-header {
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+
+.back-btn {
+  position: absolute;
+  left: 40px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 18px;
+  background: transparent;
+  border: 1px solid #e5e5e5;
+  border-radius: 8px;
+  color: var(--dark);
+  cursor: pointer;
+  font-size: 14px;
+  transition: all 0.2s;
+}
+
+.back-btn:hover {
+  background: var(--light-grey);
+  border-color: var(--rotate-primary);
+}
+
+.upload-header h1,
+.rotate-header h1 {
+  font-size: 24px;
+  font-weight: 600;
+  color: var(--dark);
+  margin: 0;
+}
+
+.upload-area {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 60px 40px;
+  margin: 40px;
+  background: var(--white);
+  border: 3px dashed var(--rotate-primary);
+  border-radius: 16px;
+  transition: all 0.3s;
+  cursor: pointer;
+}
+
+.upload-area.drag-over {
+  background: var(--rotate-primary-light);
+  border-color: var(--rotate-primary-hover);
+  transform: scale(1.02);
+}
+
+.upload-icon {
+  color: var(--rotate-primary);
+  margin-bottom: 20px;
+  animation: float 3s ease-in-out infinite;
+}
+
+@keyframes float {
+  0%,
+  100% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-10px);
+  }
+}
+
+.upload-area h2 {
+  font-size: 22px;
+  font-weight: 600;
+  color: var(--dark);
+  margin: 0 0 10px 0;
+}
+
+.upload-area p {
+  font-size: 14px;
+  color: #666;
+  margin: 10px 0;
+}
+
+.upload-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 28px;
+  background: var(--rotate-primary);
+  color: var(--white);
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-top: 20px;
+  transition: all 0.2s;
+  box-shadow: 0 2px 8px rgba(186, 39, 74, 0.3);
+}
+
+.upload-btn:hover {
+  background: var(--rotate-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(186, 39, 74, 0.4);
+}
+
+.upload-hint {
+  font-size: 13px;
+  color: #999;
+  margin-top: 20px;
+}
+
+/* Rotate Stage */
+.rotate-layout {
+  display: flex;
+  flex: 1;
+  overflow: hidden;
+}
+
+/* Control Panel (Left) */
+.control-panel {
+  width: 320px;
+  background: var(--white);
+  border-right: 1px solid #e5e5e5;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 24px;
+  box-shadow: 2px 0 8px rgba(0, 0, 0, 0.05);
+  overflow-y: auto;
+}
+
+.control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 12px 20px;
+  border: 2px solid #e5e5e5;
+  border-radius: 10px;
+  background: var(--white);
+  color: var(--dark);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.control-btn:hover {
+  border-color: var(--rotate-primary);
+  background: var(--rotate-primary-light);
+  transform: translateY(-2px);
+}
+
+.add-btn:hover {
+  border-color: var(--rotate-primary);
+  color: var(--rotate-primary);
+}
+
+.reset-btn:hover {
+  border-color: var(--danger);
+  color: var(--danger);
+}
+
+.info-box {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 12px;
+  background: var(--rotate-primary-light);
+  border: 1px solid var(--rotate-primary);
+  border-radius: 8px;
+  font-size: 12px;
+  color: var(--dark);
+  line-height: 1.5;
+}
+
+.info-box svg {
+  flex-shrink: 0;
+  color: var(--rotate-primary);
+  margin-top: 2px;
+}
+
+/* Selection Section */
+.selection-section {
+  border-top: 2px solid #e5e5e5;
+  border-bottom: 2px solid #e5e5e5;
+  padding: 16px 0;
+}
+
+.selection-section h3 {
+  font-size: 13px;
+  font-weight: 700;
+  color: #666;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin: 0 0 12px 0;
+}
+
+.selection-buttons {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.selection-btn {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  background: var(--light-grey);
+  border: 2px solid transparent;
+  border-radius: 8px;
+  color: var(--dark);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.selection-btn:hover {
+  background: var(--rotate-primary-light);
+  border-color: var(--rotate-primary);
+}
+
+.selection-btn.active {
+  background: var(--rotate-primary);
+  color: var(--white);
+  border-color: var(--rotate-primary);
+}
+
+.selection-btn svg {
+  flex-shrink: 0;
+}
+
+/* Rotation Controls */
+.rotation-controls {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.rotate-control-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: var(--white);
+  border: 2px solid var(--rotate-primary);
+  border-radius: 10px;
+  color: var(--rotate-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.rotate-control-btn:hover {
+  background: var(--rotate-primary);
+  color: var(--white);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(186, 39, 74, 0.3);
+}
+
+/* Save Button */
+.save-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  background: var(--rotate-primary);
+  color: var(--white);
+  border: none;
+  border-radius: 10px;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 3px 10px rgba(186, 39, 74, 0.3);
+  margin-top: auto;
+}
+
+.save-btn:hover:not(:disabled) {
+  background: var(--rotate-primary-hover);
+  transform: translateY(-2px);
+  box-shadow: 0 5px 14px rgba(186, 39, 74, 0.4);
+}
+
+.save-btn:disabled {
+  background: #ccc;
+  color: #999;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+/* PDF Grid (Right) */
+.pdf-grid-container {
+  flex: 1;
+  background: var(--cream);
+  padding: 30px;
+  overflow-y: auto;
+}
+
+.pdf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  align-items: start;
+  max-width: 100%;
+}
+
+/* Force 4 columns on larger screens */
+@media (min-width: 1200px) {
+  .pdf-grid {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 900px) and (max-width: 1199px) {
+  .pdf-grid {
+    grid-template-columns: repeat(3, 1fr);
+  }
+}
+
+/* Single PDF - Center it */
+.pdf-grid.single-pdf {
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+}
+
+.pdf-card {
+  position: relative;
+  background: var(--white);
+  border-radius: 12px;
+  padding: 12px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s;
+  max-width: 280px;
+  width: 100%;
+}
+
+.pdf-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.12);
+}
+
+.pdf-card:hover .individual-rotate-btn {
+  opacity: 1;
+}
+
+.pdf-card.selected {
+  border: 3px solid var(--rotate-primary);
+  box-shadow: 0 0 0 4px var(--rotate-primary-light);
+}
+
+.pdf-thumbnail-wrapper {
+  position: relative;
+  background: var(--light-grey);
+  border-radius: 8px;
+  overflow: hidden;
+  aspect-ratio: 210 / 297;
+}
+
+.pdf-thumbnail {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  transition: transform 0.3s ease;
+}
+
+/* Delete Button */
+.delete-pdf-btn {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  background: var(--danger);
+  color: white;
+  border: 2px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+  transition: all 0.2s;
+  z-index: 10;
+}
+
+.delete-pdf-btn:hover {
+  background: #e04545;
+  transform: scale(1.15);
+}
+
+/* Individual Rotate Button */
+.individual-rotate-btn {
+  position: absolute;
+  bottom: 8px;
+  right: 8px;
+  width: 40px;
+  height: 40px;
+  background: var(--rotate-primary);
+  color: white;
+  border: 2px solid white;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  opacity: 0;
+  transition: all 0.3s;
+  box-shadow: 0 4px 12px rgba(186, 39, 74, 0.4);
+  z-index: 5;
+}
+
+.individual-rotate-btn:hover {
+  background: var(--rotate-primary-hover);
+  transform: scale(1.1) rotate(90deg);
+}
+
+.individual-rotate-btn svg {
+  width: 20px;
+  height: 20px;
+}
+
+.pdf-info {
+  margin-top: 10px;
+}
+
+.pdf-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--dark);
+  margin: 0 0 6px 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pdf-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 10px;
+  color: #666;
+}
+
+.rotation-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 3px 6px;
+  background: var(--rotate-primary-light);
+  color: var(--rotate-primary);
+  border-radius: 4px;
+  font-weight: 600;
+  font-size: 10px;
+}
+
+/* Loading Overlay */
+.loading-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 26, 26, 0.9);
+  display: none; /* Hidden by default */
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  pointer-events: none;
+}
+
+.loading-overlay.active {
+  display: flex;
+  opacity: 1;
+  pointer-events: auto;
+}
+
+.loading-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+/* Taichi Spinner with custom colors */
+.taichi-spinner {
+  width: 80px;
+  height: 80px;
+  border-radius: 50%;
+  background: linear-gradient(to right, var(--rotate-primary) 50%, #fff 50%);
+  position: relative;
+  animation: spin 1.2s linear infinite;
+}
+
+.taichi-spinner::before,
+.taichi-spinner::after {
+  content: "";
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+}
+
+.taichi-spinner::before {
+  background: #fff;
+  transform: translate(-50%, -100%);
+  box-shadow: 0 0 0 2px var(--rotate-primary) inset;
+}
+
+.taichi-spinner::after {
+  background: var(--rotate-primary);
+  transform: translate(-50%, 0%);
+  box-shadow: 0 0 0 2px #fff inset;
+}
+
+@keyframes spin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+.loading-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+}
+
+.loading-text span:last-child {
+  font-size: 24px;
+  color: var(--rotate-primary);
+}
+
+/* Success Modal */
+.success-modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 26, 26, 0.9);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 10001;
+}
+
+.success-modal.active {
+  display: flex;
+}
+
+.success-content {
+  background: var(--white);
+  padding: 50px;
+  border-radius: 16px;
+  text-align: center;
+  max-width: 550px;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+  animation: scaleIn 0.4s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.8);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.success-icon {
+  color: var(--success);
+  margin-bottom: 20px;
+}
+
+.success-content h2 {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--dark);
+  margin: 0 0 10px 0;
+}
+
+.success-content p {
+  font-size: 16px;
+  color: #666;
+  margin: 0 0 24px 0;
+}
+
+.success-path {
+  background: var(--light-grey);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 13px;
+  color: #666;
+  word-break: break-all;
+  margin-bottom: 30px;
+  border-left: 3px solid var(--rotate-primary);
+}
+
+.success-actions {
+  display: flex;
+  gap: 12px;
+  justify-content: center;
+}
+
+.success-btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.success-btn.primary {
+  background: var(--rotate-primary);
+  color: var(--white);
+}
+
+.success-btn.primary:hover {
+  background: var(--rotate-primary-hover);
+  transform: translateY(-2px);
+}
+
+.success-btn.secondary {
+  background: var(--light-grey);
+  color: var(--dark);
+}
+
+.success-btn.secondary:hover {
+  background: #e5e5e5;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .rotate-layout {
+    flex-direction: column;
+  }
+
+  .control-panel {
+    width: 100%;
+    border-right: none;
+    border-bottom: 1px solid #e5e5e5;
+    max-height: 300px;
+  }
+
+  .pdf-grid {
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+  }
+}
+
+@media (max-width: 768px) {
+  .upload-header,
+  .rotate-header {
+    padding: 16px 20px;
+  }
+
+  .back-btn {
+    left: 20px;
+  }
+
+  .upload-area {
+    padding: 40px 20px;
+    margin: 20px;
+  }
+
+  .pdf-grid-container {
+    padding: 20px;
+  }
+
+  .pdf-grid {
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    gap: 16px;
+  }
+
+  .success-content {
+    margin: 20px;
+    padding: 30px;
+  }
+}

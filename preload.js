@@ -36,6 +36,17 @@ contextBridge.exposeInMainWorld("electronAPI", {
       isLast,
       folderPath,
     }),
+  saveChunkedBase64: (fileName, base64Chunk, isFirst, isLast) =>
+    ipcRenderer.invoke("save-chunked-base64", {
+      fileName,
+      base64Chunk,
+      isFirst,
+      isLast,
+    }),
+  // PDF Compress - Save file handler
+  savePdfFile: (data) => ipcRenderer.invoke("save-pdf-file", data),
+  saveMultiplePdfFiles: (data) =>
+    ipcRenderer.invoke("save-multiple-pdf-files", data),
 
   onMergeProgress: (callback) => {
     ipcRenderer.on("merge-progress", (event, progress) => callback(progress));

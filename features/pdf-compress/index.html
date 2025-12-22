@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Compress</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="pdf-compress-container">
+      <!-- Upload Stage -->
+      <div id="uploadStage" class="stage active">
+        <div class="upload-header">
+          <button class="back-btn" id="backToHome">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span id="backText">戻る</span>
+          </button>
+          <h1 id="uploadTitle">PDF 圧縮</h1>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">
+            <svg
+              width="80"
+              height="80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+              />
+            </svg>
+          </div>
+          <h2 id="uploadPrompt">PDFファイルをドラッグ&ドロップ</h2>
+          <p id="uploadSubtext">または</p>
+          <button class="upload-btn" id="selectFileBtn">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+              />
+            </svg>
+            <span id="selectBtnText">ファイルを選択</span>
+          </button>
+          <input
+            type="file"
+            id="pdfFileInput"
+            accept=".pdf"
+            multiple
+            style="display: none"
+          />
+          <p class="upload-hint" id="uploadHint">
+            複数のPDFファイルを選択可能 (合計2GB以下)
+          </p>
+        </div>
+      </div>
+
+      <!-- Options Stage -->
+      <div id="optionsStage" class="stage">
+        <div class="options-header">
+          <button class="back-btn" id="backToUpload">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span id="backOptionsText">戻る</span>
+          </button>
+          <h1 id="optionsTitle">圧縮オプション</h1>
+        </div>
+
+        <div class="options-layout">
+          <!-- Left: PDF List -->
+          <div class="pdf-list-panel">
+            <button class="add-more-btn" id="addMoreFilesBtn">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+              <span id="addMoreText">さらに追加</span>
+            </button>
+            <!-- Compression Level Section -->
+            <div class="level-section-panel">
+              <h3 id="compressionLevelTitlePanel">圧縮レベル</h3>
+              <div class="level-options-panel">
+                <label class="level-option-panel">
+                  <input
+                    type="radio"
+                    name="compressionLevel"
+                    value="standard"
+                    checked
+                  />
+                  <div class="level-content">
+                    <span class="level-title" id="standardLevelTextPanel"
+                      >標準 (推奨)</span
+                    >
+                    <span class="level-desc">高速・バランス型</span>
+                  </div>
+                </label>
+                <label class="level-option-panel">
+                  <input type="radio" name="compressionLevel" value="maximum" />
+                  <div class="level-content">
+                    <span class="level-title" id="maximumLevelTextPanel"
+                      >最大圧縮</span
+                    >
+                    <span class="level-desc">処理時間が長い</span>
+                  </div>
+                </label>
+              </div>
+            </div>
+            <!-- Action Button -->
+            <div class="action-section-panel">
+              <button class="compress-btn-panel" id="startCompressBtn" disabled>
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  />
+                </svg>
+                <span id="compressBtnTextPanel">圧縮を開始</span>
+              </button>
+            </div>
+            <div class="panel-header-section">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <path
+                  d="M13 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V9z"
+                />
+                <polyline points="13 2 13 9 20 9" />
+              </svg>
+              <h2 id="fileListTitle">ファイルリスト</h2>
+            </div>
+            <div class="pdf-list-container" id="pdfListContainer">
+              <!-- PDF items will be inserted here -->
+            </div>
+          </div>
+
+          <!-- Right: Options Panel -->
+          <div class="options-panel">
+            <div class="panel-header-section">
+              <svg
+                width="24"
+                height="24"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                stroke-width="2"
+              >
+                <circle cx="12" cy="12" r="3" />
+                <path d="M12 1v6m0 6v6M1 12h6m6 0h6" />
+              </svg>
+              <h2 id="optionsPanelTitle">設定</h2>
+            </div>
+
+            <!-- Size Info -->
+            <div class="info-section">
+              <h3 id="sizeInfoTitle">ファイル情報</h3>
+              <div class="info-grid">
+                <div class="info-item">
+                  <span class="info-label" id="filesCountLabel"
+                    >ファイル数:</span
+                  >
+                  <span class="info-value" id="filesCount">0</span>
+                </div>
+                <div class="info-item">
+                  <span class="info-label" id="totalSizeLabel"
+                    >合計サイズ:</span
+                  >
+                  <span class="info-value" id="totalSize">0 MB</span>
+                </div>
+                <div class="info-item full-width">
+                  <span class="info-label" id="limitLabel">制限:</span>
+                  <span class="info-value" id="limitValue">2 GB</span>
+                </div>
+              </div>
+              <div class="size-bar-wrapper">
+                <div class="size-bar" id="sizeBar"></div>
+              </div>
+              <p class="size-warning" id="sizeWarning" style="display: none">
+                ⚠️ <span id="warningText">合計サイズが2GBを超えています</span>
+              </p>
+            </div>
+
+            <!-- Compression Options -->
+            <div class="options-section">
+              <h3 id="compressionOptionsTitle">圧縮方法</h3>
+              <div class="option-cards">
+                <label class="option-card" id="mergeOptionCard">
+                  <input
+                    type="radio"
+                    name="compressMode"
+                    value="merge"
+                    checked
+                  />
+                  <div class="option-content">
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                      />
+                    </svg>
+                    <h4 id="mergeOptionTitle">結合して圧縮</h4>
+                    <p id="mergeOptionDesc">全てのPDFを1つに結合してから圧縮</p>
+                  </div>
+                </label>
+                <label class="option-card" id="separateOptionCard">
+                  <input type="radio" name="compressMode" value="separate" />
+                  <div class="option-content">
+                    <svg
+                      width="32"
+                      height="32"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                    >
+                      <path
+                        d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"
+                      />
+                      <polyline points="14 2 14 8 20 8" />
+                      <path d="M12 18v-6M9 15l3 3 3-3" />
+                    </svg>
+                    <h4 id="separateOptionTitle">個別に圧縮</h4>
+                    <p id="separateOptionDesc">各PDFを個別に圧縮して保存</p>
+                  </div>
+                </label>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Progress Overlay -->
+      <div class="progress-overlay" id="progressOverlay">
+        <div class="progress-container">
+          <div class="progress-icon">
+            <svg
+              width="60"
+              height="60"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+              />
+            </svg>
+          </div>
+          <h2 id="progressTitle">圧縮中...</h2>
+          <div class="progress-bar-wrapper">
+            <div class="progress-bar" id="progressBar"></div>
+          </div>
+          <div class="progress-stats">
+            <span id="progressPercent">0%</span>
+            <span id="progressDetail">準備中...</span>
+          </div>
+          <div class="progress-info">
+            <div class="progress-info-item">
+              <span id="originalSizeLabel">元のサイズ:</span>
+              <span id="originalSizeValue">0 MB</span>
+            </div>
+            <div class="progress-info-item">
+              <span id="compressedSizeLabel">圧縮後:</span>
+              <span id="compressedSizeValue">0 MB</span>
+            </div>
+            <div class="progress-info-item highlight">
+              <span id="reductionLabel">削減率:</span>
+              <span id="reductionValue">0%</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success Modal -->
+      <div class="success-modal" id="successModal">
+        <div class="success-content">
+          <div class="success-icon">
+            <svg
+              width="80"
+              height="80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+              <path d="M22 4L12 14.01l-3-3" />
+            </svg>
+          </div>
+          <h2 id="successTitle">圧縮完了!</h2>
+          <p id="successMessage">PDFファイルが圧縮されました</p>
+          <div class="success-stats">
+            <div class="success-stat">
+              <span id="successOriginalLabel">元のサイズ:</span>
+              <span id="successOriginalValue">0 MB</span>
+            </div>
+            <div class="success-stat">
+              <span id="successCompressedLabel">圧縮後:</span>
+              <span id="successCompressedValue">0 MB</span>
+            </div>
+            <div class="success-stat highlight">
+              <span id="successReductionLabel">削減:</span>
+              <span id="successReductionValue">0%</span>
+            </div>
+          </div>
+          <div class="success-path" id="successPath"></div>
+          <div class="success-actions">
+            <button class="success-btn primary" id="compressMoreBtn">
+              <span id="compressMoreText">もっと圧縮</span>
+            </button>
+            <button class="success-btn secondary" id="goHomeBtn">
+              <span id="goHomeText">ホームに戻る</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </body>
+</html>
