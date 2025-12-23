@@ -172,6 +172,9 @@ body {
 .compress-wrapper {
   --shadow-color: #a4b8ba;
 }
+.rotate-wrapper {
+  --shadow-color: #d3a4ba;
+}
 
 .text-input-overlay {
   font-family: Arial, sans-serif;
@@ -530,4 +533,27 @@ body {
   .feature {
     height: 18rem;
   }
+}
+/* Global Loading Overlay - Always visible above everything */
+#globalLoadingOverlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(26, 26, 26, 0.95);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 999999; /* Higher than everything */
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
+}
+
+#globalLoadingOverlay.active {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }

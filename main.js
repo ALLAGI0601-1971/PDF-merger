@@ -1121,3 +1121,80 @@ ipcMain.handle("save-multiple-pdf-files", async (event, { files }) => {
     return { success: false, message: err.message || String(err) };
   }
 });
+// ============= PDF ROTATE SAVE HANDLERS =============
+
+/**
+ * Save single rotated PDF with file dialog
+ */
+ipcMain.handle(
+  "save-rotated-pdf-file",
+  async (event, { fileName, base64Data }) => {
+    try {
+      const { canceled, filePath } = await dialog.showSaveDialog({
+        title: "Save Rotated PDF",
+        defaultPath: fileName || "rotated.pdf",
+        filters: [{ name: "PDF", extensions: ["pdf"] }],
+      });
+
+      if (canceled || !filePath) {
+        return { success: false, message: "canceled" };
+      }
+
+      const buffer = Buffer.from(base64Data, "base64");
+      await fs.promises.writeFile(filePath, buffer);
+
+      console.log(`✅ Saved rotated PDF: ${filePath}`);
+      return { success: true, path: filePath };
+    } catch (err) {
+      console.error("save-rotated-pdf-file error:", err);
+      return { success: false, message: err.message || String(err) };
+    }
+  }
+);
+
+/**
+ * Save multiple rotated PDFs with folder dialog
+ */
+ipcMain.handle("save-rotated-pdf-folder", async (event, { files }) => {
+  try {
+    // Show folder selection dialog
+    const { canceled, filePaths } = await dialog.showOpenDialog({
+      title: "Select Folder to Save Rotated PDFs",
+      properties: ["openDirectory", "createDirectory"],
+      buttonLabel: "Save Here",
+    });
+
+    if (canceled || !filePaths || filePaths.length === 0) {
+      return { success: false, message: "canceled" };
+    }
+
+    const selectedFolder = filePaths[0];
+
+    // Create a timestamp subfolder for organization
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, "0");
+    const day = String(now.getDate()).padStart(2, "0");
+    const hour = String(now.getHours()).padStart(2, "0");
+    const minute = String(now.getMinutes()).padStart(2, "0");
+    const folderName = `rotated_${year}${month}${day}_${hour}${minute}`;
+
+    const targetFolder = path.join(selectedFolder, folderName);
+
+    // Create the subfolder
+    await fs.promises.mkdir(targetFolder, { recursive: true });
+
+    // Save all files
+    for (const file of files) {
+      const filePath = path.join(targetFolder, file.name);
+      const buffer = Buffer.from(file.base64Data, "base64");
+      await fs.promises.writeFile(filePath, buffer);
+    }
+
+    console.log(`✅ Saved ${files.length} rotated PDFs to: ${targetFolder}`);
+    return { success: true, path: targetFolder };
+  } catch (err) {
+    console.error("save-rotated-pdf-folder error:", err);
+    return { success: false, message: err.message || String(err) };
+  }
+});

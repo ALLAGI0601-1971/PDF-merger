@@ -165,52 +165,53 @@ function getToastColor(type) {
  * @param {string} message - Loading message
  * @returns {Object} Overlay with show/hide methods
  */
+
 export function createLoadingOverlay(message = "Processing...") {
   const overlay = document.createElement("div");
-  overlay.className = "loading-overlay";
+  overlay.style.cssText = `
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(26, 26, 26, 0.95);
+    display: none;
+    align-items: center;
+    justify-content: center;
+    z-index: 999999;
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  `;
+
   overlay.innerHTML = `
-    <div style="
-      position: fixed;
-      top: 0;
-      left: 0;
-      right: 0;
-      bottom: 0;
-      background: rgba(0,0,0,0.7);
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      z-index: 9999;
-    ">
-      <div style="
-        background: white;
-        padding: 30px 40px;
-        border-radius: 12px;
-        text-align: center;
-        box-shadow: 0 10px 40px rgba(0,0,0,0.3);
-      ">
-        <div style="
-          width: 40px;
-          height: 40px;
-          border: 4px solid #f3f3f3;
-          border-top: 4px solid #0b5fff;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin: 0 auto 20px;
-        "></div>
-        <div id="loading-message" style="
-          color: #333;
-          font-size: 16px;
-          font-weight: 500;
-        ">${message}</div>
+    <div class="loading-spinner">
+      <div class="taichi-spinner"></div>
+      <div class="loading-text">
+        <span class="loading-message">${message}</span>
       </div>
     </div>
   `;
 
   return {
-    show: () => document.body.appendChild(overlay),
-    hide: () => overlay.remove(),
+    show: () => {
+      document.body.appendChild(overlay);
+      // Force reflow
+      void overlay.offsetHeight;
+      overlay.style.display = "flex";
+      // Trigger fade in
+      requestAnimationFrame(() => {
+        overlay.style.opacity = "1";
+      });
+    },
+    hide: () => {
+      overlay.style.opacity = "0";
+      setTimeout(() => {
+        overlay.style.display = "none";
+        overlay.remove();
+      }, 200);
+    },
     updateMessage: (msg) => {
-      const msgEl = overlay.querySelector("#loading-message");
+      const msgEl = overlay.querySelector(".loading-message");
       if (msgEl) msgEl.textContent = msg;
     },
   };

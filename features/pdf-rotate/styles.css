@@ -530,7 +530,6 @@ body {
   font-size: 10px;
 }
 
-/* Loading Overlay */
 .loading-overlay {
   position: fixed;
   top: 0;
@@ -538,21 +537,30 @@ body {
   right: 0;
   bottom: 0;
   background: rgba(26, 26, 26, 0.9);
-  display: none; /* Hidden by default */
+  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10000;
   opacity: 0;
-  transition: opacity 0.3s ease;
+  visibility: hidden;
   pointer-events: none;
+  transition: opacity 0.2s ease, visibility 0.2s ease;
 }
 
 .loading-overlay.active {
-  display: flex;
   opacity: 1;
+  visibility: visible;
   pointer-events: auto;
 }
 
+@keyframes fadeInLoader {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
 .loading-content {
   display: flex;
   flex-direction: column;
@@ -561,11 +569,12 @@ body {
 }
 
 /* Taichi Spinner with custom colors */
+/* Taichi Spinner for Loading Overlays */
 .taichi-spinner {
   width: 80px;
   height: 80px;
   border-radius: 50%;
-  background: linear-gradient(to right, var(--rotate-primary) 50%, #fff 50%);
+  background: linear-gradient(to right, #fff 50%, #000 50%);
   position: relative;
   animation: spin 1.2s linear infinite;
 }
@@ -582,15 +591,38 @@ body {
 }
 
 .taichi-spinner::before {
-  background: #fff;
+  background: #000;
   transform: translate(-50%, -100%);
-  box-shadow: 0 0 0 2px var(--rotate-primary) inset;
+  box-shadow: 0 0 0 2px #fff inset;
 }
 
 .taichi-spinner::after {
-  background: var(--rotate-primary);
+  background: #fff;
   transform: translate(-50%, 0%);
-  box-shadow: 0 0 0 2px #fff inset;
+  box-shadow: 0 0 0 2px #000 inset;
+}
+
+.loading-spinner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 24px;
+}
+
+.loading-text {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  color: #fff;
+  font-weight: 600;
+  font-size: 16px;
+  text-align: center;
+}
+
+.loading-message {
+  font-size: 16px;
+  color: #fff;
 }
 
 @keyframes spin {
@@ -617,7 +649,6 @@ body {
   font-size: 24px;
   color: var(--rotate-primary);
 }
-
 /* Success Modal */
 .success-modal {
   position: fixed;
@@ -626,14 +657,20 @@ body {
   right: 0;
   bottom: 0;
   background: rgba(26, 26, 26, 0.9);
-  display: none;
+  display: flex;
   align-items: center;
   justify-content: center;
   z-index: 10001;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease;
+  pointer-events: none;
 }
 
 .success-modal.active {
-  display: flex;
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
 }
 
 .success-content {

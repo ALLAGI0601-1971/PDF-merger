@@ -81,11 +81,10 @@ const LANG = {
   },
 };
 
-// ==================== INITIALIZATION ====================
+function nextFrame() {
+  return new Promise((resolve) => requestAnimationFrame(resolve));
+}
 
-/**
- * Initialize PDF Rotate feature
- */
 export async function init(container, params = {}) {
   console.log("🔄 PDF Rotate feature initializing...");
 
@@ -108,9 +107,8 @@ export async function init(container, params = {}) {
       "pdf-rotate"
     );
 
-    // Ensure we start on upload stage with no loader
+    // Ensure we start on upload stage
     showUploadStage();
-    hideLoading();
 
     console.log("✅ PDF Rotate feature initialized");
     return state;
@@ -183,20 +181,13 @@ function applyLanguage() {
   });
 }
 
-/**
- * Show upload stage
- */
 function showUploadStage() {
   const uploadStage = document.getElementById("uploadStage");
   const rotateStage = document.getElementById("rotateStage");
 
   if (uploadStage) uploadStage.classList.add("active");
   if (rotateStage) rotateStage.classList.remove("active");
-
-  // Ensure loader is hidden when showing upload stage
-  hideLoading();
 }
-
 /**
  * Show rotate stage
  */
@@ -483,21 +474,13 @@ function setupEventListeners() {
   }
 }
 
-// ==================== FILE HANDLING ====================
-
-/**
- * Handle file selection/drop
- */
 async function handleFiles(files) {
   if (!files || files.length === 0) return;
 
-  console.log(`📁 Processing ${files.length} file(s)`);
-
   const L = LANG[state.currentLang];
   const fileArray = Array.from(files);
-
-  // Validate files
   const validFiles = [];
+
   for (const file of fileArray) {
     const validation = utils.validatePdfFile(file);
     if (!validation.valid) {
@@ -509,41 +492,28 @@ async function handleFiles(files) {
 
   if (validFiles.length === 0) return;
 
-  showLoading(L.loadingFiles, 0);
+  state.processing = true;
+
+  const loader = utils.createLoadingOverlay(L.loadingFiles);
+  loader.show();
 
   try {
-    for (let i = 0; i < validFiles.length; i++) {
-      const file = validFiles[i];
-      const progress = Math.round(((i + 1) / validFiles.length) * 100);
+    const total = validFiles.length; // 🔴 ADD THIS LINE
 
-      updateLoading(
-        `${L.loadingFiles} ${i + 1}/${validFiles.length}`,
-        progress
-      );
-
-      try {
-        const pdfData = await loadPdfFile(file);
-        state.pdfFiles.push(pdfData);
-
-        console.log(
-          `✅ Loaded: ${file.name} (${pdfData.pageCount} pages, ${pdfData.orientation})`
-        );
-      } catch (error) {
-        console.error(`❌ Failed to load ${file.name}:`, error);
-        utils.showToast(`${file.name}: ${L.errorLoading}`, "error");
-      }
+    for (let i = 0; i < total; i++) {
+      loader.updateMessage(`${L.loadingFiles} ${i + 1}/${total}`);
+      const pdfData = await loadPdfFile(validFiles[i]);
+      state.pdfFiles.push(pdfData);
     }
 
-    hideLoading();
-
-    if (state.pdfFiles.length > 0) {
-      showRotateStage();
-      renderPdfGrid();
-    }
+    loader.hide();
+    showRotateStage();
+    renderPdfGrid();
   } catch (error) {
-    hideLoading();
-    console.error("❌ Error handling files:", error);
+    loader.hide();
     utils.showToast(L.errorLoading, "error");
+  } finally {
+    state.processing = false; // 🔴 ADD THIS LINE
   }
 }
 
@@ -711,137 +681,71 @@ function updateOrientation(pdf) {
   }
 }
 
-// ==================== SAVE LOGIC ====================
-
-/**
- * Save rotated PDFs
- */
 async function saveRotatedPdfs() {
   if (state.processing || state.pdfFiles.length === 0) return;
 
-  state.processing = true;
   const L = LANG[state.currentLang];
+  state.processing = true;
 
-  console.log(`\n${"=".repeat(60)}`);
-  console.log(`💾 SAVE ROTATED PDFS START`);
-  console.log(`   Files: ${state.pdfFiles.length}`);
-  console.log(`${"=".repeat(60)}\n`);
-
-  // Show loader immediately
-  showLoading(L.processingPdf, 0);
-
-  // Small delay to ensure loader is visible
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  // Show loading overlay using utils
+  const loader = utils.createLoadingOverlay(L.processingPdf);
+  loader.show();
 
   try {
     const PDFLib = await ensurePDFLib();
     const processedFiles = [];
+    const total = state.pdfFiles.length;
 
-    for (let i = 0; i < state.pdfFiles.length; i++) {
+    // Process PDFs
+    for (let i = 0; i < total; i++) {
+      loader.updateMessage(`${L.processingPdf} ${i + 1}/${total}`);
+
       const pdf = state.pdfFiles[i];
-      const progress = Math.round(((i + 0.5) / state.pdfFiles.length) * 90);
+      const buffer = await utils.readFileAsArrayBuffer(pdf.file);
+      const pdfDoc = await PDFLib.PDFDocument.load(buffer, {
+        ignoreEncryption: true,
+      });
 
-      updateLoading(
-        `${L.processingPdf} ${i + 1}/${state.pdfFiles.length}`,
-        progress
-      );
-
-      console.log(
-        `📄 Processing: ${pdf.name} (rotation: ${pdf.rotation * 90}°)`
-      );
-
-      try {
-        // Load PDF
-        const arrayBuffer = await utils.readFileAsArrayBuffer(pdf.file);
-        const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer, {
-          ignoreEncryption: true,
-        });
-
-        // Apply rotation if needed
-        if (pdf.rotation !== 0) {
-          const pages = pdfDoc.getPages();
-          const rotationDegrees = pdf.rotation * 90;
-
-          pages.forEach((page) => {
-            const currentRotation = page.getRotation().angle || 0;
-            page.setRotation(PDFLib.degrees(currentRotation + rotationDegrees));
-          });
-
-          console.log(
-            `  ✅ Applied ${rotationDegrees}° rotation to ${pages.length} pages`
-          );
-        } else {
-          console.log(`  ⏭️ No rotation needed`);
-        }
-
-        // Save PDF
-        const pdfBytes = await pdfDoc.save({
-          useObjectStreams: false,
-          addDefaultPage: false,
-        });
-
-        const fileName = pdf.rotation !== 0 ? `rotated_${pdf.name}` : pdf.name;
-
-        processedFiles.push({
-          name: fileName,
-          base64Data: arrayBufferToBase64(pdfBytes),
-        });
-
-        console.log(
-          `  ✅ Processed: ${fileName} (${Math.round(
-            pdfBytes.length / 1024
-          )}KB)`
+      if (pdf.rotation !== 0) {
+        const pages = pdfDoc.getPages();
+        const rot = pdf.rotation * 90;
+        pages.forEach((p) =>
+          p.setRotation(PDFLib.degrees(p.getRotation().angle + rot))
         );
-      } catch (error) {
-        console.error(`  ❌ Failed to process ${pdf.name}:`, error);
-        utils.showToast(`${pdf.name}: ${L.errorSaving}`, "error");
       }
+
+      const bytes = await pdfDoc.save({ useObjectStreams: false });
+
+      processedFiles.push({
+        name: pdf.rotation ? `rotated_${pdf.name}` : pdf.name,
+        base64Data: arrayBufferToBase64(bytes),
+      });
     }
 
-    if (processedFiles.length === 0) {
-      throw new Error("No files processed successfully");
-    }
-
-    // Save files - show saving progress
-    updateLoading(L.savingFiles, 95);
+    // Update message before file dialog
+    loader.updateMessage(L.savingFiles);
 
     let result;
     if (processedFiles.length === 1) {
-      // Single file - save directly
-      result = await window.electronAPI.savePdfFile({
-        fileName: processedFiles[0].name,
-        base64Data: processedFiles[0].base64Data,
-      });
+      result = await window.electronAPI.saveRotatedPdfFile(processedFiles[0]);
     } else {
-      // Multiple files - save to folder
-      result = await window.electronAPI.saveMultiplePdfFiles({
+      result = await window.electronAPI.saveRotatedPdfFolder({
         files: processedFiles,
       });
     }
 
-    // Show completion
-    updateLoading(L.savingFiles, 100);
-    await new Promise((resolve) => setTimeout(resolve, 500));
+    loader.hide();
 
-    hideLoading();
-
-    if (result && result.success) {
-      console.log(`✅ Files saved to: ${result.path}`);
+    if (result?.success) {
       showSuccessModal(result.path);
-    } else {
-      throw new Error("Failed to save files");
     }
   } catch (error) {
-    hideLoading();
-    console.error("❌ Save failed:", error);
+    loader.hide();
     utils.showToast(L.errorSaving, "error");
   } finally {
     state.processing = false;
-    console.log(`${"=".repeat(60)}\n`);
   }
 }
-
-// ==================== UTILITY FUNCTIONS ====================
 
 /**
  * Ensure pdf-lib is loaded
@@ -884,43 +788,34 @@ function arrayBufferToBase64(buffer) {
 }
 
 /**
- * Show loading overlay
- */
-function showLoading(message, percent) {
-  const overlay = document.getElementById("loadingOverlay");
-  if (overlay) overlay.classList.add("active");
-
-  updateLoading(message, percent);
-}
-
-/**
- * Hide loading overlay
- */
-function hideLoading() {
-  const overlay = document.getElementById("loadingOverlay");
-  if (overlay) overlay.classList.remove("active");
-}
-
-/**
- * Update loading message and progress
- */
-function updateLoading(message, percent) {
-  const messageEl = document.getElementById("loadingMessage");
-  const percentEl = document.getElementById("loadingPercent");
-
-  if (messageEl) messageEl.textContent = message;
-  if (percentEl) percentEl.textContent = `${Math.round(percent)}%`;
-}
-
-/**
  * Show success modal
  */
 function showSuccessModal(path) {
   const modal = document.getElementById("successModal");
   const pathEl = document.getElementById("successPath");
 
-  if (pathEl && path) pathEl.textContent = path;
-  if (modal) modal.classList.add("active");
+  if (!modal) {
+    console.error("❌ Success modal element not found!");
+    return;
+  }
+
+  console.log(`🎉 [SHOW SUCCESS MODAL] Path: ${path}`);
+  console.log(`   Current classes: "${modal.className}"`);
+
+  if (pathEl && path) {
+    pathEl.textContent = path;
+    console.log(`   ✅ Path set: ${path}`);
+  }
+
+  modal.classList.add("active");
+
+  requestAnimationFrame(() => {
+    const newStyle = window.getComputedStyle(modal);
+    console.log(`   ✅ Modal shown:`);
+    console.log(`      Classes: "${modal.className}"`);
+    console.log(`      Opacity: ${newStyle.opacity}`);
+    console.log(`      Visibility: ${newStyle.visibility}`);
+  });
 }
 
 /**
@@ -928,11 +823,12 @@ function showSuccessModal(path) {
  */
 function hideSuccessModal() {
   const modal = document.getElementById("successModal");
-  if (modal) modal.classList.remove("active");
-}
+  if (!modal) {
+    console.warn("⚠️ Success modal not found when trying to hide");
+    return;
+  }
 
-// ==================== EXPORTS ====================
-export default {
-  init,
-  cleanup,
-};
+  console.log("🔄 [HIDE SUCCESS MODAL]");
+  modal.classList.remove("active");
+  console.log(`   ✅ Modal hidden`);
+}

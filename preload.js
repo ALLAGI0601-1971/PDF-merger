@@ -75,4 +75,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
   onUpdateDownloaded: (callback) => {
     ipcRenderer.on("update-downloaded", (event, data) => callback(data));
   },
+  saveRotatedPdfFile: (data) =>
+    ipcRenderer.invoke("save-rotated-pdf-file", data),
+  saveRotatedPdfFolder: (data) =>
+    ipcRenderer.invoke("save-rotated-pdf-folder", data),
 });
