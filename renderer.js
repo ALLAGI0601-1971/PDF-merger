@@ -91,9 +91,13 @@ function registerFeatures() {
     version: "1.0.0",
     path: "features/pdf-rotate",
   });
-  // Future features can be registered here
-  // featureManager.register('page-organizer', { ... });
-  // featureManager.register('pdf-compress', { ... });
+  featureManager.register("pdf-redact", {
+    title: "PDF墨塗り",
+    titleEn: "PDF Redact",
+    description: "Redact sensitive information from PDFs",
+    version: "1.0.0",
+    path: "features/pdf-redact",
+  });
 }
 
 /**
@@ -201,6 +205,26 @@ function setupFeatureButtons() {
   if (rotateBtnText) {
     rotateBtnText.textContent = currentLang === "ja" ? "PDF回転" : "PDF Rotate";
   }
+
+  const pdfRedactBtn = document.getElementById("pdfRedactBtn");
+  if (pdfRedactBtn) {
+    pdfRedactBtn.addEventListener("click", async () => {
+      try {
+        await featureManager.activate("pdf-redact", {
+          lang: currentLang,
+        });
+      } catch (error) {
+        console.error("Failed to open PDF Redact:", error);
+        utils.showToast("Failed to open PDF Redact feature", "error");
+      }
+    });
+  }
+
+  const redactBtnText = document.getElementById("redactBtnText");
+  if (redactBtnText) {
+    redactBtnText.textContent =
+      currentLang === "ja" ? "PDF墨塗り" : "PDF Redact";
+  }
   // Single function to update all feature button texts
   const updateFeatureButtonTexts = () => {
     const mergePdfBtnText = document.getElementById("mergePdfBtnText");
@@ -237,6 +261,11 @@ function setupFeatureButtons() {
     if (rotateBtnText) {
       rotateBtnText.textContent =
         currentLang === "ja" ? "PDF回転" : "PDF Rotate";
+    }
+    const redactBtnText = document.getElementById("redactBtnText");
+    if (redactBtnText) {
+      redactBtnText.textContent =
+        currentLang === "ja" ? "PDF墨塗り" : "PDF Redact";
     }
   };
 

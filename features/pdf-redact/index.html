@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>PDF Redact</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <div class="pdf-redact-container">
+      <!-- Upload Stage -->
+      <div id="uploadStage" class="stage active">
+        <div class="upload-header">
+          <button class="back-btn" id="backToHome">
+            <svg
+              width="24"
+              height="24"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M19 12H5M12 19l-7-7 7-7" />
+            </svg>
+            <span id="backText">戻る</span>
+          </button>
+          <h1 id="uploadTitle">PDF墨塗り</h1>
+        </div>
+
+        <div class="upload-area" id="uploadArea">
+          <div class="upload-icon">
+            <svg
+              width="80"
+              height="80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="1.5"
+            >
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+              />
+            </svg>
+          </div>
+          <h2 id="uploadPrompt">PDFファイルをドラッグ&ドロップ</h2>
+          <p id="uploadSubtext">または</p>
+          <button class="upload-btn" id="selectFileBtn">
+            <svg
+              width="20"
+              height="20"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path
+                d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"
+              />
+            </svg>
+            <span id="selectBtnText">ファイルを選択</span>
+          </button>
+          <input
+            type="file"
+            id="pdfFileInput"
+            accept=".pdf"
+            style="display: none"
+          />
+          <p class="upload-hint" id="uploadHint">1つのPDFファイルを選択</p>
+        </div>
+      </div>
+
+      <!-- Redact Stage (NEW LAYOUT) -->
+      <div id="redactStage" class="stage">
+        <div class="redact-layout">
+          <!-- LEFT: Thumbnail Sidebar -->
+          <div class="thumbnail-sidebar">
+            <div class="thumbnail-header">
+              <button class="back-btn-small" id="backToUpload">
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M19 12H5M12 19l-7-7 7-7" />
+                </svg>
+              </button>
+              <h3 id="thumbnailsTitle">ページ一覧</h3>
+            </div>
+
+            <div class="thumbnail-container" id="thumbnailContainer">
+              <!-- Thumbnails will be dynamically inserted here -->
+            </div>
+          </div>
+
+          <!-- CENTER: PDF Viewer -->
+          <div class="pdf-viewer-container">
+            <div class="viewer-controls">
+              <div class="page-info" id="pageInfo">Page 1 / 1</div>
+
+              <div class="zoom-controls">
+                <button class="zoom-btn" id="zoomOutBtn" title="Zoom Out">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35M8 11h6" />
+                  </svg>
+                </button>
+                <span class="zoom-level" id="zoomLevel">100%</span>
+                <button class="zoom-btn" id="zoomInBtn" title="Zoom In">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <circle cx="11" cy="11" r="8" />
+                    <path d="M21 21l-4.35-4.35M11 8v6M8 11h6" />
+                  </svg>
+                </button>
+                <button class="zoom-btn" id="resetZoomBtn" title="Reset Zoom">
+                  <svg
+                    width="16"
+                    height="16"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="2"
+                  >
+                    <path d="M3 12a9 9 0 019-9 9.75 9.75 0 016.74 2.74L21 8" />
+                    <path
+                      d="M21 3v5h-5M21 12a9 9 0 01-9 9 9.75 9.75 0 01-6.74-2.74L3 16"
+                    />
+                    <path d="M3 21v-5h5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
+
+            <div class="pdf-canvas-wrapper" id="pdfCanvasWrapper">
+              <canvas id="pdfCanvas"></canvas>
+              <div class="redaction-overlay" id="redactionOverlay"></div>
+            </div>
+          </div>
+
+          <!-- RIGHT: Control Panel -->
+          <div class="control-panel">
+            <div class="tool-section">
+              <h3 id="toolsTitle">選択方法</h3>
+              <div class="info-box">
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <circle cx="12" cy="12" r="10" />
+                  <path d="M12 16v-4M12 8h.01" />
+                </svg>
+                <span id="infoText">テキストを選択して赤く囲みます</span>
+              </div>
+            </div>
+
+            <div class="redaction-list-section">
+              <h3 id="redactionListTitle">選択リスト</h3>
+              <div class="redaction-count" id="redactionCount">
+                <span id="redactionCountText">0 個選択中</span>
+              </div>
+              <div class="redaction-list" id="redactionList">
+                <div class="redaction-empty" id="redactionEmpty">
+                  <svg
+                    width="40"
+                    height="40"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    stroke-width="1.5"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <path d="M3 9h18M9 21V9" />
+                  </svg>
+                  <span id="emptyText">選択なし</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="action-buttons">
+              <button class="control-btn clear-btn" id="clearAllBtn">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"
+                  />
+                </svg>
+                <span id="clearAllText">すべて削除</span>
+              </button>
+
+              <button class="save-btn" id="saveRedactedBtn">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path
+                    d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"
+                  />
+                </svg>
+                <span id="saveRedactedText">墨塗りPDFを保存</span>
+              </button>
+              <button class="control-btn" id="panToolBtn" title="Pan Tool">
+                <svg
+                  width="20"
+                  height="20"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                >
+                  <path d="M9 11V6l3-3 3 3v5M9 19h6" />
+                  <circle cx="12" cy="16" r="3" />
+                </svg>
+                <span>パン</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Success Modal -->
+      <div class="success-modal" id="successModal">
+        <div class="success-content">
+          <div class="success-icon">
+            <svg
+              width="80"
+              height="80"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+            >
+              <path d="M22 11.08V12a10 10 0 11-5.93-9.14" />
+              <path d="M22 4L12 14.01l-3-3" />
+            </svg>
+          </div>
+          <h2 id="successTitle">保存完了!</h2>
+          <p id="successMessage">PDFファイルが墨塗りされて保存されました</p>
+          <div class="success-path" id="successPath"></div>
+          <div class="success-actions">
+            <button class="success-btn primary" id="redactMoreBtn">
+              <span id="redactMoreText">もっと墨塗り</span>
+            </button>
+            <button class="success-btn secondary" id="goHomeBtn">
+              <span id="goHomeText">ホームに戻る</span>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="pdf-canvas-wrapper" id="pdfCanvasWrapper">
+      <div id="drawingLayer" class="drawing-layer"></div>
+      <canvas id="pdfCanvas"></canvas>
+      <div class="redaction-overlay" id="redactionOverlay"></div>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
+    <script src="feature.js"></script>
+  </body>
+</html>

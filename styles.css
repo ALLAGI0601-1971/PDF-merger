@@ -175,6 +175,9 @@ body {
 .rotate-wrapper {
   --shadow-color: #d3a4ba;
 }
+.redact-wrapper {
+  --shadow-color: #aca9a9;
+}
 
 .text-input-overlay {
   font-family: Arial, sans-serif;

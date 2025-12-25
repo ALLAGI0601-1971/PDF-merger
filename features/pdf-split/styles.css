@@ -1,7 +1,7 @@
 /* features/pdf-split/styles.css - Restructured to match PDF Rotate UX */
 
 :root {
-  --split-primary: #c41e3a;
+  --split-primary: #da0a0a;
   --split-primary-light: rgba(196, 30, 58, 0.1);
   --split-primary-hover: #a01828;
   --split-accent: #e04545;
